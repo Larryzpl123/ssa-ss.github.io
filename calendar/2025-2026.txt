@@ -72,10 +72,10 @@
 05.04-05.08
 05.11-05.11
 05.12-05.12 "Evaluation Day" noclass
-05.13-05.15
-05.18-05.22
+05.13-05.15 "Immersive" immersive
+05.18-05.22 "Immersive" immersive
 05.25-05.25 "Memorial Day" noclass
-05.26-05.29
-06.01-06.03
+05.26-05.29 "Immersive" immersive
+06.01-06.03 "Immersive" immersive
 06.04-06.04 "Last Day / Early Dismissal" noclass
 06.05-06.05 "Evaluation Day" noclass
