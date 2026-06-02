@@ -112,7 +112,7 @@
   <button id="pickBtn">Pick date ▾</button>
   <select id="yearSel" title="School year"></select>
   <div style="position:relative">
-    <input id="stuSearch" placeholder="Search student (e.g. 27z, zhongp)" autocomplete="off" style="width:14rem">
+    <input id="stuSearch" placeholder="Search student (ssa username, start of email)" autocomplete="off" style="width:24rem">
     <div id="stuResults" style="position:absolute;top:110%;left:0;right:0;background:var(--panel);border:1px solid var(--line);border-radius:8px;max-height:240px;overflow:auto;z-index:30;display:none"></div>
   </div>
   <div class="spacer"></div>
@@ -174,15 +174,49 @@ function parseStudentIndex(txt){
 /* ---- Embedded fallbacks ---- */
 const EMBED={
  "school":
-`@fixed Assembly / Community Time - 10:05-10:30 - Rauh - gray
+`# SSA Senior School - shared schedule definitions (same for all SS students)
+# Loaded by index.html alongside each student's personal file.
+
+# ---- Community Time block (10:05-10:30 on normal days) ----
+# Name varies by weekday: Mon=Assembly, Tue=Advisory, Wed=none, Thu=Club Time, Fri=Assembly
+@community time = 10:05-10:30
+@community Mon = Assembly
+@community Tue = Advisory
+@community Wed =
+@community Thu = Club Time
+@community Fri = Assembly
+
+# Immersive community time (10:00-10:30): Wed=Advisory, very first immersive day=Assembly, else Community Time
+@imm_community time = 10:00-10:30
+@imm_community default = Community Time
+@imm_community Wed = Advisory
+@imm_community first = Assembly
+
+# Immersive term daily blocks: label - HH:MM-HH:MM
 @imm_block Morning Session 1 - 08:30-10:00
 @imm_block Community Time - 10:00-10:30
 @imm_block Morning Session 2 - 10:30-12:00
 @imm_block Lunch A - 12:00-13:00
 @imm_block Afternoon Session - 13:00-15:00
+
+# ---- 8-day rotation (shared by all SS students) ----
+# period:HH:MM-HH:MM (24h). Personal files just list which classes fill A-H.
+@latearly A=La B=Ea C=La D=Ea E=Ea F=La G=La H=Ea
+@day 1 = A:08:15-09:05 B:09:10-10:00 C:10:35-11:45 D:11:50-12:40 E:13:20-14:10 F:14:15-15:00
+@day 2 = G:08:15-09:05 D:09:10-10:00 E:10:35-11:45 A:13:20-14:10 B:14:15-15:00
+@day 3 = F:08:15-09:05 H:09:10-10:00 A:10:35-11:45 C:12:25-13:15 G:13:20-14:10 D:14:15-15:00
+@day 4 = B:08:15-09:05 C:09:10-10:00 G:10:35-11:45 E:11:50-12:40 F:13:20-14:10
+@day 5 = D:08:15-09:05 E:09:10-10:00 F:10:35-11:45 A:12:25-13:15 B:13:20-14:10 C:14:15-15:00
+@day 6 = H:08:15-09:05 A:09:10-10:00 B:10:35-11:45 G:12:25-13:15 D:13:20-14:10 E:14:15-15:00
+@day 7 = C:08:15-09:05 G:09:10-10:00 D:10:35-11:45 F:12:25-13:15 H:13:20-14:10 A:14:15-15:00
+@day 8 = E:08:15-09:05 F:09:10-10:00 H:10:35-11:45 B:11:50-12:40 C:13:20-14:10 G:14:15-15:00
+
+# Dismissal lines (bold marker): daytype = HH:MM
 @dismiss normal = 15:00
 @dismiss immersive = 15:00
 @dismiss wednesday = 15:25
+
+# Wednesday late-start remap: normalStart => wedStart-wedEnd
 @wed 08:15 => 09:35-10:25
 @wed 09:10 => 10:30-11:20
 @wed 10:35 => 11:25-12:15
@@ -371,6 +405,8 @@ function parseStudent(txt){
     if(!line||line.startsWith("#")) continue;
     if(line.startsWith("@immersive")){const p=line.replace("@immersive","").trim().split(" - ").map(x=>x.trim());s.imm={name:p[0],num:p[1],teacher:p[2],room:p[3],color:p[4]||"indigo"};continue;}
     if(line.startsWith("@imm_block")){const p=line.replace("@imm_block","").trim().split(" - ").map(x=>x.trim());const r=(p[1]||"").split("-");if(r.length===2)s.immBlocks.push({label:p[0],start:r[0],end:r[1]});continue;}
+    if(line.startsWith("@imm_community")){const m=line.match(/^@imm_community\s+(\w+)\s*=\s*(.*)$/);if(m){s.immComm=s.immComm||{};if(m[1]==="time"){const r=m[2].split("-");s.immComm.time={start:r[0],end:r[1]};}else s.immComm[m[1]]=m[2].trim();}continue;}
+    if(line.startsWith("@community")){const m=line.match(/^@community\s+(\w+)\s*=\s*(.*)$/);if(m){s.comm=s.comm||{};if(m[1]==="time"){const r=m[2].split("-");s.comm.time={start:r[0],end:r[1]};}else s.comm[m[1]]=m[2].trim();}continue;}
     if(line.startsWith("@wed")){const m=line.match(/^@wed\s+(\d{1,2}:\d{2})\s*=>\s*(\d{1,2}:\d{2})-(\d{1,2}:\d{2})/);if(m){s.wed=s.wed||{};s.wed[m[1]]={start:m[2],end:m[3]};}continue;}
     if(line.startsWith("@dismiss")){const m=line.match(/^@dismiss\s+(\w+)\s*=\s*(\S+)/);if(m){s.dismiss=s.dismiss||{};s.dismiss[m[1]]=m[2];}continue;}
     if(line.startsWith("@sport")){const p=line.replace("@sport","").trim().split(" - ").map(x=>x.trim());const t=(p[2]||"").split("-");const rg=(p[3]||"").split("-");s.sports.push({name:p[0],dows:(p[1]||"").split(",").map(x=>x.trim()),start:t[0],end:t[1],from:rg[0],to:rg[1],color:p[4]||"cyan"});continue;}
@@ -421,7 +457,8 @@ function buildDayMap(parsed){
       map[k].cycle=(idxOf[k]%8)+1;
     }
   }
-  return {map,hasAnchors:anc.length>0,firstDay:sdays[0],lastDay:sdays[sdays.length-1]};
+  return {map,hasAnchors:anc.length>0,firstDay:sdays[0],lastDay:sdays[sdays.length-1],
+    firstImmersive:Object.keys(map).filter(k=>map[k].type==="immersive").sort()[0]||null};
 }
 
 /* ---- state ---- */
@@ -459,10 +496,19 @@ function render(){
     if(k===todayKey)col.classList.add("today");
     for(let h=8;h<=18;h++){const hl=document.createElement("div");hl.className="hline";hl.style.top=((h*60-AX_START)*PX_PER_MIN)+"px";col.appendChild(hl);}
 
+    const DN3=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()];
     if(info&&info.type==="immersive"&&STU&&STU.imm){
+      const isFirst=(MAPINFO.firstImmersive===k);
       (STU.immBlocks||[]).forEach(b=>{
         const sess=/Session|Afternoon|Morning/.test(b.label);
-        addBlock(col,k,todayKey,nowMin,{fixed:!sess,color:COLOR_MAP[STU.imm.color]||"#9aa6ff",start:toMin(b.start),end:toMin(b.end),name:sess?STU.imm.name:b.label,num:sess?STU.imm.num:"",per:sess?b.label:"",teach:sess?`${STU.imm.teacher} \u00b7 ${STU.imm.room}`:""});
+        let label=b.label, show=true;
+        if(/Community/i.test(b.label)&&STU.immComm){
+          // Wed=Advisory, very first immersive day=Assembly, else default
+          if(isFirst) label=STU.immComm.first||"Assembly";
+          else if(DN3==="Wed") label=STU.immComm.Wed||"Advisory";
+          else label=STU.immComm.default||"Community Time";
+        }
+        if(show) addBlock(col,k,todayKey,nowMin,{fixed:!sess,color:COLOR_MAP[STU.imm.color]||"#9aa6ff",start:toMin(b.start),end:toMin(b.end),name:sess?STU.imm.name:label,num:sess?STU.imm.num:"",per:sess?b.label:"",teach:sess?`${STU.imm.teacher} \u00b7 ${STU.imm.room}`:""});
       });
     } else if(info&&info.school&&info.cycle&&STU){
       (STU.days[String(info.cycle)]||[]).forEach(item=>{
@@ -477,9 +523,11 @@ function render(){
           teach:cls.teacher?`${cls.teacher}${cls.room?(" · "+cls.room):""}`:""
         });
       });
-      if(info.type!=="wednesday")(STU.fixed||[]).forEach(f=>{
-        addBlock(col,k,todayKey,nowMin,{fixed:true,start:toMin(f.start),end:toMin(f.end),name:f.name,teach:f.room||""});
-      });
+      // weekday-aware community time (no community on Wednesday)
+      if(info.type!=="wednesday"&&STU.comm&&STU.comm.time){
+        const label=STU.comm[DN3];
+        if(label) addBlock(col,k,todayKey,nowMin,{fixed:true,start:toMin(STU.comm.time.start),end:toMin(STU.comm.time.end),name:label,teach:"Rauh"});
+      }
     } else if(info&&!info.school){
       const blk=document.createElement("div");blk.className="block dayfull";blk.style.setProperty("--blk","#262d3b");blk.style.color="#cfd6e2";blk.style.top="0";blk.style.height=BODY_H+"px";blk.style.display="grid";blk.style.placeItems="center";blk.style.borderStyle="dashed";blk.innerHTML=`<div class="bname" style="opacity:.85">${info.name}</div>`;col.appendChild(blk);
     }
@@ -494,7 +542,7 @@ function render(){
       });
     }
     // dismissal line: 3:00 normal/immersive, 3:25 Wednesday
-    if(info&&info.school&&STU.dismiss){
+    if(info&&info.school&&STU&&STU.dismiss){
       const dt=STU.dismiss[info.type==="wednesday"?"wednesday":(info.type==="immersive"?"immersive":"normal")];
       if(dt){const dis=toMin(dt);const dl=document.createElement("div");dl.style.cssText=`position:absolute;left:0;right:0;top:${(dis-AX_START)*PX_PER_MIN}px;border-top:2px solid rgba(255,210,63,.5);z-index:4`;col.appendChild(dl);}
     }
@@ -572,6 +620,10 @@ async function loadStudent(stu){
   STU.immBlocks=SCHOOL.immBlocks||[];
   STU.dismiss=SCHOOL.dismiss||{normal:"15:00",immersive:"15:00",wednesday:"15:25"};
   STU.wed=SCHOOL.wed||{};
+  STU.days=SCHOOL.days||{};          // rotation is school-wide
+  STU.latearly=SCHOOL.latearly||{};  // La/Ea is school-wide
+  STU.comm=SCHOOL.comm||null;
+  STU.immComm=SCHOOL.immComm||null;
   if(STU.pref.background)document.documentElement.style.setProperty("--bg",STU.pref.background);
   if(STU.pref.highlight_class)document.documentElement.style.setProperty("--accent",STU.pref.highlight_class);
   if(STU.pref.highlight_day)document.documentElement.style.setProperty("--today",STU.pref.highlight_day);

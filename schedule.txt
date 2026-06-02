@@ -1,15 +1,39 @@
 # SSA Senior School - shared schedule definitions (same for all SS students)
 # Loaded by index.html alongside each student's personal file.
 
-# Fixed daily block(s) on every normal school day: name - HH:MM-HH:MM - room - color
-@fixed Assembly / Community Time - 10:05-10:30 - Rauh - gray
+# ---- Community Time block (10:05-10:30 on normal days) ----
+# Name varies by weekday: Mon=Assembly, Tue=Advisory, Wed=none, Thu=Club Time, Fri=Assembly
+@community time = 10:05-10:30
+@community Mon = Assembly
+@community Tue = Advisory
+@community Wed =
+@community Thu = Club Time
+@community Fri = Assembly
 
-# Immersive term daily blocks (the course itself is per-student): label - HH:MM-HH:MM
+# Immersive community time (10:00-10:30): Wed=Advisory, very first immersive day=Assembly, else Community Time
+@imm_community time = 10:00-10:30
+@imm_community default = Community Time
+@imm_community Wed = Advisory
+@imm_community first = Assembly
+
+# Immersive term daily blocks: label - HH:MM-HH:MM
 @imm_block Morning Session 1 - 08:30-10:00
 @imm_block Community Time - 10:00-10:30
 @imm_block Morning Session 2 - 10:30-12:00
 @imm_block Lunch A - 12:00-13:00
 @imm_block Afternoon Session - 13:00-15:00
+
+# ---- 8-day rotation (shared by all SS students) ----
+# period:HH:MM-HH:MM (24h). Personal files just list which classes fill A-H.
+@latearly A=La B=Ea C=La D=Ea E=Ea F=La G=La H=Ea
+@day 1 = A:08:15-09:05 B:09:10-10:00 C:10:35-11:45 D:11:50-12:40 E:13:20-14:10 F:14:15-15:00
+@day 2 = G:08:15-09:05 D:09:10-10:00 E:10:35-11:45 A:13:20-14:10 B:14:15-15:00
+@day 3 = F:08:15-09:05 H:09:10-10:00 A:10:35-11:45 C:12:25-13:15 G:13:20-14:10 D:14:15-15:00
+@day 4 = B:08:15-09:05 C:09:10-10:00 G:10:35-11:45 E:11:50-12:40 F:13:20-14:10
+@day 5 = D:08:15-09:05 E:09:10-10:00 F:10:35-11:45 A:12:25-13:15 B:13:20-14:10 C:14:15-15:00
+@day 6 = H:08:15-09:05 A:09:10-10:00 B:10:35-11:45 G:12:25-13:15 D:13:20-14:10 E:14:15-15:00
+@day 7 = C:08:15-09:05 G:09:10-10:00 D:10:35-11:45 F:12:25-13:15 H:13:20-14:10 A:14:15-15:00
+@day 8 = E:08:15-09:05 F:09:10-10:00 H:10:35-11:45 B:11:50-12:40 C:13:20-14:10 G:14:15-15:00
 
 # Dismissal lines (bold marker): daytype = HH:MM
 @dismiss normal = 15:00
@@ -17,7 +41,6 @@
 @dismiss wednesday = 15:25
 
 # Wednesday late-start remap: normalStart => wedStart-wedEnd
-# (a period that normally starts at LEFT uses the RIGHT time on Wednesdays)
 @wed 08:15 => 09:35-10:25
 @wed 09:10 => 10:30-11:20
 @wed 10:35 => 11:25-12:15
