@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SSA Smart Schedule</title>
+<style>
+  :root{
+    --bg:#0d0f14; --panel:#151922; --panel2:#1c2230; --line:#2a3142;
+    --ink:#e7ecf3; --ink-dim:#8b95a7; --accent:#ffd23f; --today:#ffffff;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:radial-gradient(1200px 600px at 85% -10%, #1a2335 0%, transparent 60%), var(--bg);
+    color:var(--ink);
+    font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    -webkit-font-smoothing:antialiased;min-height:100%;
+  }
+  header{
+    display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;
+    padding:1.1rem 1.4rem .9rem;border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:20;
+    background:linear-gradient(180deg,rgba(13,15,20,.97),rgba(13,15,20,.82));
+    backdrop-filter:blur(8px);
+  }
+  .brand h1{font-size:1.15rem;letter-spacing:.06em;font-weight:600}
+  .brand .sub{color:var(--ink-dim);font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;margin-top:.2rem}
+  .clock{text-align:right;font-variant-numeric:tabular-nums}
+  .clock .c-date{font-size:.78rem;color:var(--ink-dim);letter-spacing:.04em}
+  .clock .c-time{font-size:1.45rem;font-weight:600;color:var(--accent);letter-spacing:.04em}
+
+  .toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem;padding:.8rem 1.4rem;border-bottom:1px solid var(--line)}
+  .nav{display:flex;align-items:center;gap:.5rem}
+  button,select,input{font-family:inherit;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:.45rem .7rem;font-size:.8rem;cursor:pointer;transition:.15s}
+  button:hover,select:hover{border-color:var(--accent);color:var(--accent)}
+  .arrow{font-size:1rem;width:2.4rem;height:2.2rem;display:grid;place-items:center}
+  .wklabel{min-width:14rem;text-align:center;color:var(--ink-dim);font-size:.82rem}
+  .spacer{flex:1}
+  .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .seg button{border:0;border-radius:0;background:var(--panel)}
+  .seg button.on{background:var(--accent);color:#0d0f14;font-weight:600}
+
+  main{padding:1.1rem 1.4rem 3rem}
+  .grid-wrap{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .ghead{display:grid;grid-template-columns:64px repeat(5,1fr)}
+  .ghead .corner{border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .dcell{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:.55rem .5rem;text-align:center}
+  .dcell:last-child{border-right:0}
+  .dcell .dow{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim)}
+  .dcell .dnum{font-size:.98rem;font-weight:600;margin-top:.1rem}
+  .dcell .dcyc{font-size:.68rem;color:var(--ink-dim);margin-top:.05rem}
+  .dcell .dname{font-size:.66rem;color:var(--accent);margin-top:.15rem;min-height:.8rem}
+  .dcell.today{box-shadow:inset 0 0 0 2px var(--today)}
+
+  .gbody{display:grid;grid-template-columns:64px repeat(5,1fr);position:relative}
+  .axis{position:relative;border-right:1px solid var(--line)}
+  .axis .tick{position:absolute;left:0;right:0;border-top:1px dashed var(--line);font-size:.62rem;color:var(--ink-dim);padding:.05rem .2rem}
+  .col{position:relative;border-right:1px solid var(--line)}
+  .col:last-child{border-right:0}
+  .col.today{background:rgba(255,255,255,.025)}
+  .hline{position:absolute;left:0;right:0;border-top:1px dashed rgba(255,255,255,.05)}
+
+  .block{position:absolute;left:4px;right:4px;border-radius:8px;padding:.35rem .45rem;overflow:hidden;border:1px solid rgba(255,255,255,.12);background:var(--blk,#222);color:#0c0c0c;font-size:.66rem;line-height:1.18;transition:.15s}
+  .block:hover{filter:brightness(1.06);z-index:5;border-color:rgba(255,255,255,.4)}
+  .block.now{box-shadow:0 0 0 2px var(--accent),0 4px 14px rgba(0,0,0,.4);z-index:6}
+  .block .bname{font-weight:700;font-size:.72rem}
+  .block .bnum{opacity:.85}
+  .block .bper{font-weight:600;margin-top:.1rem}
+  .block .bteach{opacity:.8;margin-top:.05rem}
+  .block .btime{opacity:.9;margin-top:.1rem;font-variant-numeric:tabular-nums}
+  .block.fixed{background:repeating-linear-gradient(45deg,#3a4252,#3a4252 6px,#333b49 6px,#333b49 12px);color:#cfd6e2;border-style:dashed}
+  .block.fixed .bname{font-size:.66rem}
+
+  .nowbar{position:absolute;left:0;right:0;height:0;border-top:2px solid var(--accent);z-index:7}
+  .nowbar::before{content:"";position:absolute;left:-3px;top:-4px;width:7px;height:7px;border-radius:50%;background:var(--accent)}
+
+  .legend{display:flex;flex-wrap:wrap;gap:.7rem;margin-top:1rem;font-size:.7rem;color:var(--ink-dim);align-items:center}
+  .legend .li{display:flex;align-items:center;gap:.35rem}
+  .sw{width:14px;height:14px;border-radius:4px;border:1px solid rgba(255,255,255,.2)}
+
+  dialog{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:1.2rem;max-width:340px}
+  dialog::backdrop{background:rgba(0,0,0,.6)}
+  dialog h3{margin-bottom:.8rem;font-size:.95rem}
+  dialog .row{display:flex;gap:.5rem;margin-bottom:.6rem;align-items:center}
+  dialog label{font-size:.75rem;color:var(--ink-dim);min-width:3.4rem}
+  .status{font-size:.7rem;color:var(--ink-dim);padding:.4rem 1.4rem 0}
+  @media (max-width:640px){.clock .c-time{font-size:1.1rem}.wklabel{min-width:auto;font-size:.7rem}.block{font-size:.58rem}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <h1>SSA Smart Schedule</h1>
+    <div class="sub">Shady Side Academy · Senior School</div>
+  </div>
+  <div class="clock">
+    <div class="c-date" id="cDate">—</div>
+    <div class="c-time" id="cTime">—</div>
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="nav">
+    <button class="arrow" id="prevWk" title="Previous week">‹</button>
+    <div class="wklabel" id="wkLabel">—</div>
+    <button class="arrow" id="nextWk" title="Next week">›</button>
+  </div>
+  <button id="todayBtn">Today</button>
+  <button id="pickBtn">Pick date ▾</button>
+  <select id="yearSel" title="School year"></select>
+  <select id="studentSel" title="Student"></select>
+  <div class="spacer"></div>
+  <div class="seg" id="fmtSeg">
+    <button data-f="12h" class="on">12h</button>
+    <button data-f="24h">24h</button>
+  </div>
+</div>
+<div class="status" id="status"></div>
+
+<main>
+  <div class="grid-wrap">
+    <div class="ghead" id="ghead"></div>
+    <div class="gbody" id="gbody"></div>
+  </div>
+  <div class="legend" id="legend"></div>
+</main>
+
+<dialog id="dateDlg">
+  <h3>Jump to date</h3>
+  <div class="row"><label>Year</label><select id="dlgY"></select></div>
+  <div class="row"><label>Month</label><select id="dlgM"></select></div>
+  <div class="row"><label>Day</label><select id="dlgD"></select></div>
+  <div class="row" style="justify-content:flex-end">
+    <button id="dlgCancel">Cancel</button>
+    <button id="dlgGo" style="border-color:var(--accent);color:var(--accent)">Go</button>
+  </div>
+</dialog>
+
+<script>
+/* ============================================================
+   SSA Smart Schedule — index.html
+   Anchor-based 8-day cycle. Loads calendar/<year>.txt, day files,
+   and a student schedule. Falls back to embedded copies so it
+   works when opened directly (file://). Year-agnostic.
+   ============================================================ */
+
+const COLOR_MAP={red:"#ff6b6b",green:"#7ee081",blue:"#6db3ff",yellow:"#ffe066",purple:"#c08cff",teal:"#5fe3d0",orange:"#ffb061",pink:"#ff9ad2",gray:"#aab2c0",grey:"#aab2c0",indigo:"#9aa6ff",lime:"#c6ff70",cyan:"#79f0ff"};
+const DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+const YEARS=[
+  {id:"2025-2026", label:"2025\u201326", startYear:2025, path:"calendar/2025-2026.txt"},
+  {id:"2026-2027", label:"2026\u201327", startYear:2026, path:"calendar/2026-2027.txt"}
+];
+const STUDENTS=[
+  {id:"27zhongp", label:"Pei Lin Zhong (27)", path:"students/classof2027/27zhongp.txt"}
+];
+
+/* ---- Embedded fallbacks ---- */
+const EMBED={
+ "2025-2026":
+`@anchor 2025-09-05 = 7
+@anchor 2025-11-06 = 5
+@anchor 2026-03-30 = 3
+@anchor 2026-04-06 = 7
+@anchor 2026-05-04 = 2
+08.26-08.29
+09.01-09.01 "Labor Day" noclass
+09.02-09.05
+09.08-09.12
+09.15-09.19
+09.22-09.22
+09.23-09.23 "Rosh Hashanah" noclass
+09.24-09.26
+09.29-10.01
+10.02-10.02 "Yom Kippur" noclass
+10.03-10.03
+10.06-10.10
+10.13-10.16
+10.17-10.17 "Evaluation Day" noclass
+10.18-10.19
+10.20-10.20 "Diwali" noclass
+10.21-10.24
+10.27-10.31
+11.03-11.03 "Conferences" noclass
+11.04-11.07
+11.10-11.14
+11.17-11.21
+11.24-11.24 "Faculty Work Day" noclass
+11.25-11.28 "Thanksgiving Break" noclass
+12.01-12.05
+12.08-12.12
+12.15-12.18
+12.19-12.19 "Winter Recess" noclass
+12.22-01.04 "Winter Recess" noclass
+01.05-01.09
+01.12-01.16
+01.19-01.19 "MLK Day" noclass
+01.20-01.23
+01.26-01.30
+02.02-02.06
+02.09-02.12
+02.13-02.13 "In-Service Day" noclass
+02.16-02.16 "Presidents Day" noclass
+02.17-02.20
+02.23-02.27
+03.02-03.02 "Evaluation Day" noclass
+03.03-03.06
+03.09-03.13
+03.16-03.27 "Spring Recess" noclass
+03.30-04.02
+04.03-04.03 "Good Friday" noclass
+04.06-04.10
+04.13-04.16
+04.17-04.17 "Conferences" noclass
+04.20-04.24
+04.27-05.01
+05.04-05.08
+05.11-05.11
+05.12-05.12 "Evaluation Day" noclass
+05.13-05.15
+05.18-05.22
+05.25-05.25 "Memorial Day" noclass
+05.26-05.29
+06.01-06.02
+06.03-06.03 "Last Day / Early Dismissal" noclass
+06.04-06.04 "Evaluation Day" noclass`,
+ "2026-2027":
+`08.25-08.28
+08.31-09.04
+09.07-09.07 "Labor Day" noclass
+09.08-09.11
+09.14-09.18
+09.21-09.21 "Yom Kippur" noclass
+09.22-09.25
+09.28-10.02
+10.05-10.09
+10.12-10.16
+10.19-10.19 "Evaluation Day" noclass
+10.20-10.23
+10.26-10.30
+11.02-11.02 "Conferences" noclass
+11.03-11.06
+11.09-11.13
+11.16-11.20
+11.23-11.23 "Faculty Work Day" noclass
+11.24-11.27 "Thanksgiving Break" noclass
+11.30-12.04
+12.07-12.10
+12.11-12.11 "Evaluation Day" noclass
+12.14-12.18
+12.21-01.03 "Winter Recess" noclass
+01.04-01.08
+01.11-01.15
+01.18-01.18 "MLK Day" noclass
+01.19-01.22
+01.25-01.29
+02.01-02.05
+02.08-02.11
+02.12-02.12 "In-Service Day" noclass
+02.15-02.15 "Presidents Day" noclass
+02.16-02.19
+02.22-02.26
+03.01-03.01 "Evaluation Day" noclass
+03.02-03.05
+03.08-03.12
+03.15-03.19
+03.22-03.31 "Spring Recess" noclass
+04.01-04.02 "Spring Recess" noclass
+04.05-04.09
+04.12-04.16
+04.19-04.22
+04.23-04.23 "Conferences" noclass
+04.26-04.30
+05.03-05.07
+05.10-05.10
+05.11-05.11 "Evaluation Day" noclass
+05.12-05.14
+05.17-05.17 "Evaluation Day" noclass
+05.18-05.21
+05.24-05.28
+05.31-05.31 "Memorial Day" noclass
+06.01-06.02
+06.03-06.03 "Last Day / Early Dismissal" noclass
+06.04-06.04 "Evaluation Day" noclass`,
+ student:
+`Pei Lin Zhong
+Junior - Upper Form
+A - AP Calculus BC - MA560 - 1 - Mrs. Yam - R 202 - blue
+B - French 2 - FR200 - 1 - Ms. Lembrechts - C 3 - green
+C - Psychology - PS400 - 2 - Mrs. Fani - MC 222 - purple
+D - Robotics - CS301 - 1 - Ms. Wang - GH 031 - teal
+E - U.S. History - HI300 - 5 - Mr. Weiss - R 135 - orange
+F - Organic Chem. - CH410 - 2 - Mr. Grant - MC 208 - red
+G - Indian Lit. - EN4013 - 1 - Ms. Garvey - R 105 - yellow
+H - Organic Chem. - CH410 - 2 - Mr. Grant - MC 208 - red
+@fixed Assembly / Community Time - 10:05-10:30 - Rauh - gray
+@latearly A=La B=Ea C=La D=Ea E=Ea F=La G=La H=Ea
+@day 1 = A:08:15-09:05 B:09:10-10:00 C:10:35-11:45 D:11:50-12:40 E:13:20-14:10 F:14:15-15:00
+@day 2 = G:08:15-09:05 D:09:10-10:00 E:10:35-11:45 A:13:20-14:10 B:14:15-15:00
+@day 3 = F:08:15-09:05 H:09:10-10:00 A:10:35-11:45 C:12:25-13:15 G:13:20-14:10 D:14:15-15:00
+@day 4 = B:08:15-09:05 C:09:10-10:00 G:10:35-11:45 E:11:50-12:40 F:13:20-14:10
+@day 5 = D:08:15-09:05 E:09:10-10:00 F:10:35-11:45 A:12:25-13:15 B:13:20-14:10 C:14:15-15:00
+@day 6 = H:08:15-09:05 A:09:10-10:00 B:10:35-11:45 G:12:25-13:15 D:13:20-14:10 E:14:15-15:00
+@day 7 = C:08:15-09:05 G:09:10-10:00 D:10:35-11:45 F:12:25-13:15 H:13:20-14:10 A:14:15-15:00
+@day 8 = E:08:15-09:05 F:09:10-10:00 H:10:35-11:45 B:11:50-12:40 C:13:20-14:10 G:14:15-15:00
+@pref background = #0d0f14
+@pref highlight_class = #ffd23f
+@pref time_format = 12h`
+};
+
+/* ---- helpers ---- */
+const pad=n=>String(n).padStart(2,"0");
+const toMin=t=>{const[h,m]=t.split(":").map(Number);return h*60+m;};
+const dkey=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+function fmtTime(min,is12){let h=Math.floor(min/60),m=min%60;if(is12){const ap=h>=12?"PM":"AM";let hh=h%12;if(hh===0)hh=12;return `${hh}:${pad(m)} ${ap}`;}return `${pad(h)}:${pad(m)}`;}
+
+/* ---- parsing ---- */
+function parseCalendar(txt,startYear){
+  const ymd=mmdd=>{const[mm,dd]=mmdd.split(".").map(Number);const y=mm>=8?startYear:startYear+1;return new Date(y,mm-1,dd);};
+  const blocks=[],anchors=[];
+  txt.split(/\r?\n/).forEach(line=>{
+    line=line.trim(); if(!line||line.startsWith("#"))return;
+    let m=line.match(/^@anchor\s+(\d{4})-(\d{2})-(\d{2})\s*=\s*(\d)/);
+    if(m){anchors.push({date:new Date(+m[1],+m[2]-1,+m[3]),cycle:+m[4]});return;}
+    m=line.match(/^(\d{2}\.\d{2})-(\d{2}\.\d{2})(?:\s+"([^"]*)")?(?:\s+(\S+))?/);
+    if(!m)return;
+    blocks.push({start:ymd(m[1]),end:ymd(m[2]),name:m[3]||null,type:m[4]||null});
+  });
+  return {blocks,anchors};
+}
+
+function parseStudent(txt){
+  const s={name:"",form:"",classes:{},latearly:{},days:{},fixed:[],pref:{}};
+  let idx=0;
+  for(const raw of txt.split(/\r?\n/)){
+    const line=raw.trim();
+    if(!line||line.startsWith("#")) continue;
+    if(line.startsWith("@fixed")){
+      const p=line.replace("@fixed","").trim().split(" - ").map(x=>x.trim());
+      const name=p[0],time=p[1],room=p[2],color=p[3];
+      const parts=(time||"").split("-");
+      if(parts.length===2) s.fixed.push({name,start:parts[0],end:parts[1],room:room||"",color:color||"gray"});
+      continue;
+    }
+    if(line.startsWith("@latearly")){line.replace("@latearly","").trim().split(/\s+/).forEach(p=>{const a=p.split("=");if(a[0]&&a[1])s.latearly[a[0]]=a[1];});continue;}
+    if(line.startsWith("@day")){const m=line.match(/^@day\s+(\d+)\s*=\s*(.*)$/);if(m)s.days[m[1]]=m[2].trim().split(/\s+/).filter(Boolean).map(tok=>{const i=tok.indexOf(":");const p=tok.slice(0,i);const r=tok.slice(i+1).split("-");return{p,start:r[0],end:r[1]};});continue;}
+    if(line.startsWith("@pref")){const m=line.match(/^@pref\s+(\w+)\s*=\s*(.*)$/);if(m)s.pref[m[1]]=m[2].trim();continue;}
+    if(/^[A-H]\s*-/.test(line)){const p=line.split(" - ").map(x=>x.trim());s.classes[p[0]]={name:p[1],num:p[2],sec:p[3],teacher:p[4],room:p[5],color:p[6]||"gray"};continue;}
+    if(idx===0){s.name=line;idx++;continue;}
+    if(idx===1){s.form=line;idx++;continue;}
+  }
+  return s;
+}
+
+/* ---- anchor-based cycle day map ---- */
+function buildDayMap(parsed){
+  const blocks=parsed.blocks, anchors=parsed.anchors, map={};
+  const isNo=t=>t==="noclass"||t==="holiday";
+  for(const b of blocks){
+    let d=new Date(b.start);
+    while(d<=b.end){
+      const dow=d.getDay(), k=dkey(d);
+      if(dow!==0&&dow!==6){
+        if(isNo(b.type)) map[k]={cycle:null,name:b.name||"No Class",type:"noclass",school:false};
+        else if(dow===3&&!b.name) map[k]={cycle:0,name:"Wednesday",type:"wednesday",school:true};
+        else map[k]={cycle:0,name:b.name||"Normal Day",type:b.type||"normal",school:true};
+      }
+      d.setDate(d.getDate()+1);
+    }
+  }
+  const sdays=Object.keys(map).filter(k=>map[k].school).sort();
+  const idxOf={}; sdays.forEach((k,i)=>idxOf[k]=i);
+  const anc=anchors.slice().sort((a,b)=>a.date-b.date).filter(a=>dkey(a.date) in idxOf);
+  for(const k of sdays){
+    if(anc.length){
+      let best=null;
+      for(const a of anc){const ai=idxOf[dkey(a.date)];const dist=Math.abs(idxOf[k]-ai);if(!best||dist<best.dist)best={a,ai,dist};}
+      const delta=idxOf[k]-best.ai;
+      map[k].cycle=((best.a.cycle-1+delta)%8+8)%8+1;
+    } else {
+      map[k].cycle=(idxOf[k]%8)+1;
+    }
+  }
+  return {map,hasAnchors:anc.length>0,firstDay:sdays[0],lastDay:sdays[sdays.length-1]};
+}
+
+/* ---- state ---- */
+let DAYMAP={}, MAPINFO={}, STU=null, IS12=true, weekStart=null, curYear=YEARS[0];
+function mondayOf(d){const x=new Date(d);const dow=x.getDay();x.setDate(x.getDate()+(dow===0?-6:1-dow));x.setHours(0,0,0,0);return x;}
+
+/* ---- rendering ---- */
+const AX_START=8*60, AX_END=15*60+30, PX_PER_MIN=1.05, BODY_H=(AX_END-AX_START)*PX_PER_MIN;
+
+function render(){
+  const ghead=document.getElementById("ghead"), gbody=document.getElementById("gbody");
+  ghead.innerHTML=""; gbody.innerHTML="";
+  const corner=document.createElement("div");corner.className="corner";ghead.appendChild(corner);
+  const todayKey=dkey(new Date());
+  const days=[];
+  for(let i=0;i<5;i++){
+    const d=new Date(weekStart);d.setDate(d.getDate()+i);days.push(d);
+    const k=dkey(d), info=DAYMAP[k];
+    const cell=document.createElement("div");cell.className="dcell";
+    if(k===todayKey)cell.classList.add("today");
+    const cyc=info&&info.cycle?`Day ${info.cycle}`:"";
+    const nm=info?info.name:"NA";
+    cell.innerHTML=`<div class="dow">${DOW[d.getDay()]}</div><div class="dnum">${MON[d.getMonth()]} ${pad(d.getDate())}</div><div class="dcyc">${cyc}</div><div class="dname">${nm}</div>`;
+    ghead.appendChild(cell);
+  }
+  gbody.style.height=BODY_H+"px";
+  const axis=document.createElement("div");axis.className="axis";axis.style.height=BODY_H+"px";
+  for(let h=8;h<=15;h++){const tick=document.createElement("div");tick.className="tick";tick.style.top=((h*60-AX_START)*PX_PER_MIN)+"px";tick.textContent=IS12?fmtTime(h*60,true):pad(h)+":00";axis.appendChild(tick);}
+  gbody.appendChild(axis);
+
+  const now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
+  days.forEach(d=>{
+    const k=dkey(d), info=DAYMAP[k];
+    const col=document.createElement("div");col.className="col";col.style.height=BODY_H+"px";
+    if(k===todayKey)col.classList.add("today");
+    for(let h=8;h<=15;h++){const hl=document.createElement("div");hl.className="hline";hl.style.top=((h*60-AX_START)*PX_PER_MIN)+"px";col.appendChild(hl);}
+
+    if(info&&info.school&&info.cycle&&STU){
+      (STU.days[String(info.cycle)]||[]).forEach(item=>{
+        const cls=STU.classes[item.p];if(!cls)return;
+        addBlock(col,k,todayKey,nowMin,{
+          color:COLOR_MAP[cls.color]||cls.color||"#888",
+          start:toMin(item.start),end:toMin(item.end),
+          name:cls.name,num:cls.num,sec:cls.sec,
+          per:`${item.p}${STU.latearly[item.p]?(" - "+STU.latearly[item.p]):""}`,
+          teach:cls.teacher?`${cls.teacher}${cls.room?(" · "+cls.room):""}`:""
+        });
+      });
+      (STU.fixed||[]).forEach(f=>{
+        addBlock(col,k,todayKey,nowMin,{fixed:true,start:toMin(f.start),end:toMin(f.end),name:f.name,teach:f.room||""});
+      });
+    } else if(info&&!info.school){
+      const blk=document.createElement("div");blk.className="block";blk.style.setProperty("--blk","#262d3b");blk.style.color="#cfd6e2";blk.style.top="0";blk.style.height=BODY_H+"px";blk.style.display="grid";blk.style.placeItems="center";blk.style.borderStyle="dashed";blk.innerHTML=`<div class="bname" style="opacity:.85">${info.name}</div>`;col.appendChild(blk);
+    }
+    if(k===todayKey&&nowMin>=AX_START&&nowMin<=AX_END){const bar=document.createElement("div");bar.className="nowbar";bar.style.top=((nowMin-AX_START)*PX_PER_MIN)+"px";col.appendChild(bar);}
+    gbody.appendChild(col);
+  });
+
+  const wkEnd=new Date(weekStart);wkEnd.setDate(wkEnd.getDate()+4);
+  document.getElementById("wkLabel").textContent=`${MON[weekStart.getMonth()]} ${pad(weekStart.getDate())} \u2013 ${MON[wkEnd.getMonth()]} ${pad(wkEnd.getDate())}, ${wkEnd.getFullYear()}`;
+  renderLegend();
+}
+
+function addBlock(col,k,todayKey,nowMin,o){
+  const top=(o.start-AX_START)*PX_PER_MIN, h=(o.end-o.start)*PX_PER_MIN;
+  const blk=document.createElement("div");blk.className="block"+(o.fixed?" fixed":"");
+  if(!o.fixed)blk.style.setProperty("--blk",o.color);
+  blk.style.top=top+"px";blk.style.height=Math.max(h,24)+"px";
+  const tline=`${fmtTime(o.start,IS12)} \u2013 ${fmtTime(o.end,IS12)}`;
+  blk.innerHTML=`<div class="bname">${o.name}</div>`+
+    (o.num?`<div class="bnum">${o.num}${o.sec?(" \u00b7 "+o.sec):""}</div>`:"")+
+    (o.per?`<div class="bper">${o.per}</div>`:"")+
+    (o.teach?`<div class="bteach">${o.teach}</div>`:"")+
+    `<div class="btime">${tline}</div>`;
+  if(k===todayKey&&nowMin>=o.start&&nowMin<o.end)blk.classList.add("now");
+  col.appendChild(blk);
+}
+
+function renderLegend(){
+  const el=document.getElementById("legend");if(!STU){el.innerHTML="";return;}
+  el.innerHTML="";
+  Object.entries(STU.classes).forEach(([p,c])=>{
+    if(c.name==="Unscheduled")return;
+    const col=COLOR_MAP[c.color]||c.color||"#888";
+    const d=document.createElement("div");d.className="li";
+    d.innerHTML=`<span class="sw" style="background:${col}"></span>${p} \u00b7 ${c.name}`;el.appendChild(d);
+  });
+}
+
+function tickClock(){const d=new Date();document.getElementById("cDate").textContent=`${DOW[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;document.getElementById("cTime").textContent=`${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;}
+
+/* ---- loading ---- */
+async function tryFetch(path,fallback){try{const r=await fetch(path,{cache:"no-store"});if(r.ok){const t=await r.text();if(t&&t.length>5)return{text:t,live:true};}}catch(e){}return{text:fallback,live:false};}
+
+async function loadYear(y){
+  curYear=y;
+  const res=await tryFetch(y.path, EMBED[y.id]||"");
+  const built=buildDayMap(parseCalendar(res.text,y.startYear));
+  DAYMAP=built.map; MAPINFO=built;
+  let msg = res.live? "" : "Embedded data (serve via a local server to load live .txt files). ";
+  if(!built.hasAnchors) msg += "No cycle anchors for this year yet \u2014 Day numbers start at 1 on the first day and may be phase-shifted until you add an @anchor line.";
+  document.getElementById("status").textContent=msg;
+}
+
+async function loadStudent(stu){
+  const res=await tryFetch(stu.path, EMBED.student);
+  STU=parseStudent(res.text);
+  if(STU.pref.background)document.documentElement.style.setProperty("--bg",STU.pref.background);
+  if(STU.pref.highlight_class)document.documentElement.style.setProperty("--accent",STU.pref.highlight_class);
+  if(STU.pref.highlight_day)document.documentElement.style.setProperty("--today",STU.pref.highlight_day);
+  if(STU.pref.time_format){IS12=STU.pref.time_format!=="24h";syncFmtSeg();}
+}
+
+function syncFmtSeg(){document.querySelectorAll("#fmtSeg button").forEach(b=>b.classList.toggle("on",(b.dataset.f==="12h")===IS12));}
+
+function pickDefaultWeek(){
+  const todayKey=dkey(new Date());
+  if(DAYMAP[todayKey]) weekStart=mondayOf(new Date());
+  else if(MAPINFO.firstDay){const a=MAPINFO.firstDay.split("-").map(Number);weekStart=mondayOf(new Date(a[0],a[1]-1,a[2]));}
+  else weekStart=mondayOf(new Date());
+}
+
+async function init(){
+  const yearSel=document.getElementById("yearSel");
+  YEARS.forEach(y=>{const o=document.createElement("option");o.value=y.id;o.textContent=y.label;yearSel.appendChild(o);});
+  const stuSel=document.getElementById("studentSel");
+  STUDENTS.forEach(s=>{const o=document.createElement("option");o.value=s.id;o.textContent=s.label;stuSel.appendChild(o);});
+
+  const today=new Date();
+  const def=YEARS.find(y=>{const s=new Date(y.startYear,7,1),e=new Date(y.startYear+1,6,31);return today>=s&&today<=e;})||YEARS[0];
+  yearSel.value=def.id;
+  await loadYear(def);
+  await loadStudent(STUDENTS[0]);
+  pickDefaultWeek();
+  render();
+  tickClock();setInterval(tickClock,1000);
+  setInterval(render,60000);
+}
+
+/* ---- events ---- */
+document.getElementById("prevWk").onclick=()=>{weekStart.setDate(weekStart.getDate()-7);weekStart=new Date(weekStart);render();};
+document.getElementById("nextWk").onclick=()=>{weekStart.setDate(weekStart.getDate()+7);weekStart=new Date(weekStart);render();};
+document.getElementById("todayBtn").onclick=()=>{pickDefaultWeek();render();};
+document.querySelectorAll("#fmtSeg button").forEach(b=>b.onclick=()=>{IS12=(b.dataset.f==="12h");syncFmtSeg();render();});
+document.getElementById("yearSel").onchange=async e=>{const y=YEARS.find(v=>v.id===e.target.value);await loadYear(y);pickDefaultWeek();render();};
+document.getElementById("studentSel").onchange=async e=>{const s=STUDENTS.find(v=>v.id===e.target.value);await loadStudent(s);render();};
+
+const dlg=document.getElementById("dateDlg");
+function fillDlg(){const Y=document.getElementById("dlgY"),M=document.getElementById("dlgM"),D=document.getElementById("dlgD");Y.innerHTML="";[curYear.startYear,curYear.startYear+1].forEach(y=>{const o=document.createElement("option");o.value=y;o.textContent=y;Y.appendChild(o);});M.innerHTML="";MON.forEach((m,i)=>{const o=document.createElement("option");o.value=i;o.textContent=m;M.appendChild(o);});const d=new Date(weekStart);Y.value=d.getFullYear();M.value=d.getMonth();fillDays();D.value=d.getDate();}
+function fillDays(){const Y=+document.getElementById("dlgY").value,M=+document.getElementById("dlgM").value,D=document.getElementById("dlgD");const n=new Date(Y,M+1,0).getDate();const cur=D.value;D.innerHTML="";for(let i=1;i<=n;i++){const o=document.createElement("option");o.value=i;o.textContent=i;D.appendChild(o);}if(cur&&cur<=n)D.value=cur;}
+document.getElementById("pickBtn").onclick=()=>{fillDlg();dlg.showModal();};
+document.getElementById("dlgM").onchange=fillDays;document.getElementById("dlgY").onchange=fillDays;
+document.getElementById("dlgCancel").onclick=()=>dlg.close();
+document.getElementById("dlgGo").onclick=()=>{const Y=+document.getElementById("dlgY").value,M=+document.getElementById("dlgM").value,D=+document.getElementById("dlgD").value;weekStart=mondayOf(new Date(Y,M,D));dlg.close();render();};
+
+init();
+</script>
+</body>
+</html>
