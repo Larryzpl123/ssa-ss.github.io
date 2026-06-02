@@ -111,7 +111,10 @@
   <button id="todayBtn">Today</button>
   <button id="pickBtn">Pick date ▾</button>
   <select id="yearSel" title="School year"></select>
-  <select id="studentSel" title="Student"></select>
+  <div style="position:relative">
+    <input id="stuSearch" placeholder="Search student (e.g. 27z, zhongp)" autocomplete="off" style="width:14rem">
+    <div id="stuResults" style="position:absolute;top:110%;left:0;right:0;background:var(--panel);border:1px solid var(--line);border-radius:8px;max-height:240px;overflow:auto;z-index:30;display:none"></div>
+  </div>
   <div class="spacer"></div>
   <div class="seg" id="fmtSeg">
     <button data-f="12h" class="on">12h</button>
@@ -155,9 +158,18 @@ const YEARS=[
   {id:"2025-2026", label:"2025\u201326", startYear:2025, path:"calendar/2025-2026.txt"},
   {id:"2026-2027", label:"2026\u201327", startYear:2026, path:"calendar/2026-2027.txt"}
 ];
-const STUDENTS=[
-  {id:"27zhongp", label:"Pei Lin Zhong (27)", path:"students/classof2027/27zhongp.txt"}
-];
+let STUDENTS=[]; // loaded from students/index.txt
+const STUDENTS_EMBED=`27 | Zhong | Pei Lin | students/27/zhongp.txt`;
+function parseStudentIndex(txt){
+  return txt.split(/\r?\n/).map(l=>l.trim()).filter(l=>l&&!l.startsWith("#")).map(l=>{
+    const p=l.split("|").map(x=>x.trim());
+    const cls=p[0],last=p[1],first=p[2],path=p[3];
+    // build search blob: class + last + first + filename
+    const fname=(path||"").split("/").pop().replace(".txt","");
+    return {cls,last,first,path,label:`${first} ${last} (${cls})`,
+      blob:`${cls}${last}${first}${fname} ${cls} ${last} ${first} ${fname}`.toLowerCase()};
+  });
+}
 
 /* ---- Embedded fallbacks ---- */
 const EMBED={
@@ -170,7 +182,14 @@ const EMBED={
 @imm_block Afternoon Session - 13:00-15:00
 @dismiss normal = 15:00
 @dismiss immersive = 15:00
-@dismiss wednesday = 15:25`,
+@dismiss wednesday = 15:25
+@wed 08:15 => 09:35-10:25
+@wed 09:10 => 10:30-11:20
+@wed 10:35 => 11:25-12:15
+@wed 11:50 => 12:20-13:10
+@wed 12:25 => 12:45-13:35
+@wed 13:20 => 13:40-14:30
+@wed 14:15 => 14:35-15:25`,
  "2025-2026":
 `@anchor 2025-09-05 = 7
 @anchor 2025-11-06 = 5
@@ -352,6 +371,7 @@ function parseStudent(txt){
     if(!line||line.startsWith("#")) continue;
     if(line.startsWith("@immersive")){const p=line.replace("@immersive","").trim().split(" - ").map(x=>x.trim());s.imm={name:p[0],num:p[1],teacher:p[2],room:p[3],color:p[4]||"indigo"};continue;}
     if(line.startsWith("@imm_block")){const p=line.replace("@imm_block","").trim().split(" - ").map(x=>x.trim());const r=(p[1]||"").split("-");if(r.length===2)s.immBlocks.push({label:p[0],start:r[0],end:r[1]});continue;}
+    if(line.startsWith("@wed")){const m=line.match(/^@wed\s+(\d{1,2}:\d{2})\s*=>\s*(\d{1,2}:\d{2})-(\d{1,2}:\d{2})/);if(m){s.wed=s.wed||{};s.wed[m[1]]={start:m[2],end:m[3]};}continue;}
     if(line.startsWith("@dismiss")){const m=line.match(/^@dismiss\s+(\w+)\s*=\s*(\S+)/);if(m){s.dismiss=s.dismiss||{};s.dismiss[m[1]]=m[2];}continue;}
     if(line.startsWith("@sport")){const p=line.replace("@sport","").trim().split(" - ").map(x=>x.trim());const t=(p[2]||"").split("-");const rg=(p[3]||"").split("-");s.sports.push({name:p[0],dows:(p[1]||"").split(",").map(x=>x.trim()),start:t[0],end:t[1],from:rg[0],to:rg[1],color:p[4]||"cyan"});continue;}
     if(line.startsWith("@fixed")){
@@ -447,15 +467,17 @@ function render(){
     } else if(info&&info.school&&info.cycle&&STU){
       (STU.days[String(info.cycle)]||[]).forEach(item=>{
         const cls=STU.classes[item.p];if(!cls)return;
+        let st=item.start,en=item.end;
+        if(info.type==="wednesday"&&STU.wed&&STU.wed[item.start]){st=STU.wed[item.start].start;en=STU.wed[item.start].end;}
         addBlock(col,k,todayKey,nowMin,{
           color:COLOR_MAP[cls.color]||cls.color||"#888",
-          start:toMin(item.start),end:toMin(item.end),
+          start:toMin(st),end:toMin(en),
           name:cls.name,num:cls.num,sec:cls.sec,
           per:`${item.p}${STU.latearly[item.p]?(" - "+STU.latearly[item.p]):""}`,
           teach:cls.teacher?`${cls.teacher}${cls.room?(" · "+cls.room):""}`:""
         });
       });
-      (STU.fixed||[]).forEach(f=>{
+      if(info.type!=="wednesday")(STU.fixed||[]).forEach(f=>{
         addBlock(col,k,todayKey,nowMin,{fixed:true,start:toMin(f.start),end:toMin(f.end),name:f.name,teach:f.room||""});
       });
     } else if(info&&!info.school){
@@ -529,14 +551,27 @@ async function loadYear(y){
   document.getElementById("status").textContent=msg;
 }
 
+function yearForDate(d){
+  // school year runs Aug 1 -> Jul 31
+  const m=d.getMonth(), y=d.getFullYear();
+  const startYear=(m>=7)?y:y-1; // Aug(7)+ belongs to that year's start
+  return YEARS.find(Y=>Y.startYear===startYear)||null;
+}
+async function ensureYearFor(d){
+  const y=yearForDate(d);
+  if(y&&(!curYear||y.id!==curYear.id)){await loadYear(y);document.getElementById("yearSel").value=y.id;}
+  else if(!y){document.getElementById("status").textContent="No calendar loaded for "+(d.getFullYear())+" \u2014 add one to /calendar.";}
+}
+
 async function loadStudent(stu){
   if(!SCHOOL){const sr=await tryFetch("schedule.txt", EMBED.school);SCHOOL=parseStudent(sr.text);}
+  if(!stu){STU=null;render();return;}
   const res=await tryFetch(stu.path, EMBED.student);
   STU=parseStudent(res.text);
-  // merge school-wide shared definitions
   STU.fixed=SCHOOL.fixed||[];
   STU.immBlocks=SCHOOL.immBlocks||[];
   STU.dismiss=SCHOOL.dismiss||{normal:"15:00",immersive:"15:00",wednesday:"15:25"};
+  STU.wed=SCHOOL.wed||{};
   if(STU.pref.background)document.documentElement.style.setProperty("--bg",STU.pref.background);
   if(STU.pref.highlight_class)document.documentElement.style.setProperty("--accent",STU.pref.highlight_class);
   if(STU.pref.highlight_day)document.documentElement.style.setProperty("--today",STU.pref.highlight_day);
@@ -555,14 +590,20 @@ function pickDefaultWeek(){
 async function init(){
   const yearSel=document.getElementById("yearSel");
   YEARS.forEach(y=>{const o=document.createElement("option");o.value=y.id;o.textContent=y.label;yearSel.appendChild(o);});
-  const stuSel=document.getElementById("studentSel");
-  STUDENTS.forEach(s=>{const o=document.createElement("option");o.value=s.id;o.textContent=s.label;stuSel.appendChild(o);});
 
+  // load student manifest
+  const mres=await tryFetch("students/index.txt", STUDENTS_EMBED);
+  STUDENTS=parseStudentIndex(mres.text);
+
+  // preload school defs
+  if(!SCHOOL){const sr=await tryFetch("schedule.txt", EMBED.school);SCHOOL=parseStudent(sr.text);}
+
+  // year = the one containing today, else first
   const today=new Date();
-  const def=YEARS.find(y=>{const s=new Date(y.startYear,7,1),e=new Date(y.startYear+1,6,31);return today>=s&&today<=e;})||YEARS[0];
+  const def=yearForDate(today)||YEARS[0];
   yearSel.value=def.id;
   await loadYear(def);
-  await loadStudent(STUDENTS[0]);
+  STU=null; // no student until searched
   pickDefaultWeek();
   render();
   tickClock();setInterval(tickClock,1000);
@@ -570,26 +611,49 @@ async function init(){
 }
 
 /* ---- events ---- */
-document.getElementById("prevWk").onclick=()=>{weekStart.setDate(weekStart.getDate()-7);weekStart=new Date(weekStart);render();};
-document.getElementById("nextWk").onclick=()=>{weekStart.setDate(weekStart.getDate()+7);weekStart=new Date(weekStart);render();};
+async function goWeek(deltaDays){
+  weekStart.setDate(weekStart.getDate()+deltaDays);weekStart=new Date(weekStart);
+  await ensureYearFor(weekStart);
+  render();
+}
+document.getElementById("prevWk").onclick=()=>goWeek(-7);
+document.getElementById("nextWk").onclick=()=>goWeek(7);
 document.addEventListener("keydown",e=>{
   if(/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)||document.getElementById("dateDlg").open)return;
   const k=e.key.toLowerCase();
   if(k==="arrowleft"||k==="a")document.getElementById("prevWk").click();
   else if(k==="arrowright"||k==="d")document.getElementById("nextWk").click();
 });
-document.getElementById("todayBtn").onclick=()=>{pickDefaultWeek();render();};
+document.getElementById("todayBtn").onclick=async()=>{const y=yearForDate(new Date());if(y){await loadYear(y);document.getElementById("yearSel").value=y.id;}pickDefaultWeek();render();};
 document.querySelectorAll("#fmtSeg button").forEach(b=>b.onclick=()=>{IS12=(b.dataset.f==="12h");syncFmtSeg();render();});
+// year dropdown = jump to that year's first day
 document.getElementById("yearSel").onchange=async e=>{const y=YEARS.find(v=>v.id===e.target.value);await loadYear(y);pickDefaultWeek();render();};
-document.getElementById("studentSel").onchange=async e=>{const s=STUDENTS.find(v=>v.id===e.target.value);await loadStudent(s);render();};
+
+// ---- student search ----
+const sIn=document.getElementById("stuSearch"), sRes=document.getElementById("stuResults");
+function renderResults(q){
+  const t=q.trim().toLowerCase().replace(/\s+/g,"");
+  if(!t){sRes.style.display="none";return;}
+  const hits=STUDENTS.filter(s=>s.blob.replace(/\s+/g,"").includes(t)).slice(0,12);
+  if(!hits.length){sRes.innerHTML=`<div style="padding:.5rem .7rem;color:var(--ink-dim);font-size:.78rem">No match</div>`;sRes.style.display="block";return;}
+  sRes.innerHTML=hits.map((s,i)=>`<div data-i="${STUDENTS.indexOf(s)}" style="padding:.5rem .7rem;font-size:.8rem;cursor:pointer;border-bottom:1px solid var(--line)">${s.label}</div>`).join("");
+  sRes.style.display="block";
+  sRes.querySelectorAll("[data-i]").forEach(el=>el.onclick=async()=>{
+    const s=STUDENTS[+el.dataset.i];sIn.value=s.label;sRes.style.display="none";
+    await loadStudent(s);render();
+  });
+}
+sIn.addEventListener("input",e=>renderResults(e.target.value));
+sIn.addEventListener("focus",e=>renderResults(e.target.value));
+document.addEventListener("click",e=>{if(!sRes.contains(e.target)&&e.target!==sIn)sRes.style.display="none";});
 
 const dlg=document.getElementById("dateDlg");
-function fillDlg(){const Y=document.getElementById("dlgY"),M=document.getElementById("dlgM"),D=document.getElementById("dlgD");Y.innerHTML="";[curYear.startYear,curYear.startYear+1].forEach(y=>{const o=document.createElement("option");o.value=y;o.textContent=y;Y.appendChild(o);});M.innerHTML="";MON.forEach((m,i)=>{const o=document.createElement("option");o.value=i;o.textContent=m;M.appendChild(o);});const d=new Date(weekStart);Y.value=d.getFullYear();M.value=d.getMonth();fillDays();D.value=d.getDate();}
+function fillDlg(){const Y=document.getElementById("dlgY"),M=document.getElementById("dlgM"),D=document.getElementById("dlgD");Y.innerHTML="";const ys=new Set();YEARS.forEach(y=>{ys.add(y.startYear);ys.add(y.startYear+1);});[...ys].sort().forEach(y=>{const o=document.createElement("option");o.value=y;o.textContent=y;Y.appendChild(o);});M.innerHTML="";MON.forEach((m,i)=>{const o=document.createElement("option");o.value=i;o.textContent=m;M.appendChild(o);});const d=new Date(weekStart);Y.value=d.getFullYear();M.value=d.getMonth();fillDays();D.value=d.getDate();}
 function fillDays(){const Y=+document.getElementById("dlgY").value,M=+document.getElementById("dlgM").value,D=document.getElementById("dlgD");const n=new Date(Y,M+1,0).getDate();const cur=D.value;D.innerHTML="";for(let i=1;i<=n;i++){const o=document.createElement("option");o.value=i;o.textContent=i;D.appendChild(o);}if(cur&&cur<=n)D.value=cur;}
 document.getElementById("pickBtn").onclick=()=>{fillDlg();dlg.showModal();};
 document.getElementById("dlgM").onchange=fillDays;document.getElementById("dlgY").onchange=fillDays;
 document.getElementById("dlgCancel").onclick=()=>dlg.close();
-document.getElementById("dlgGo").onclick=()=>{const Y=+document.getElementById("dlgY").value,M=+document.getElementById("dlgM").value,D=+document.getElementById("dlgD").value;weekStart=mondayOf(new Date(Y,M,D));dlg.close();render();};
+document.getElementById("dlgGo").onclick=async()=>{const Y=+document.getElementById("dlgY").value,M=+document.getElementById("dlgM").value,D=+document.getElementById("dlgD").value;weekStart=mondayOf(new Date(Y,M,D));dlg.close();await ensureYearFor(weekStart);render();};
 
 init();
 </script>

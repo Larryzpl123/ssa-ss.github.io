@@ -15,3 +15,13 @@
 @dismiss normal = 15:00
 @dismiss immersive = 15:00
 @dismiss wednesday = 15:25
+
+# Wednesday late-start remap: normalStart => wedStart-wedEnd
+# (a period that normally starts at LEFT uses the RIGHT time on Wednesdays)
+@wed 08:15 => 09:35-10:25
+@wed 09:10 => 10:30-11:20
+@wed 10:35 => 11:25-12:15
+@wed 11:50 => 12:20-13:10
+@wed 12:25 => 12:45-13:35
+@wed 13:20 => 13:40-14:30
+@wed 14:15 => 14:35-15:25
