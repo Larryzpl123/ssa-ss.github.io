@@ -442,7 +442,7 @@ function render(){
     if(info&&info.type==="immersive"&&STU&&STU.imm){
       (STU.immBlocks||[]).forEach(b=>{
         const sess=/Session|Afternoon|Morning/.test(b.label);
-        addBlock(col,k,todayKey,nowMin,{color:COLOR_MAP[STU.imm.color]||"#9aa6ff",start:toMin(b.start),end:toMin(b.end),name:sess?STU.imm.name:b.label,num:sess?STU.imm.num:"",per:sess?b.label:"",teach:sess?`${STU.imm.teacher} \u00b7 ${STU.imm.room}`:""});
+        addBlock(col,k,todayKey,nowMin,{fixed:!sess,color:COLOR_MAP[STU.imm.color]||"#9aa6ff",start:toMin(b.start),end:toMin(b.end),name:sess?STU.imm.name:b.label,num:sess?STU.imm.num:"",per:sess?b.label:"",teach:sess?`${STU.imm.teacher} \u00b7 ${STU.imm.room}`:""});
       });
     } else if(info&&info.school&&info.cycle&&STU){
       (STU.days[String(info.cycle)]||[]).forEach(item=>{
@@ -572,6 +572,12 @@ async function init(){
 /* ---- events ---- */
 document.getElementById("prevWk").onclick=()=>{weekStart.setDate(weekStart.getDate()-7);weekStart=new Date(weekStart);render();};
 document.getElementById("nextWk").onclick=()=>{weekStart.setDate(weekStart.getDate()+7);weekStart=new Date(weekStart);render();};
+document.addEventListener("keydown",e=>{
+  if(/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)||document.getElementById("dateDlg").open)return;
+  const k=e.key.toLowerCase();
+  if(k==="arrowleft"||k==="a")document.getElementById("prevWk").click();
+  else if(k==="arrowright"||k==="d")document.getElementById("nextWk").click();
+});
 document.getElementById("todayBtn").onclick=()=>{pickDefaultWeek();render();};
 document.querySelectorAll("#fmtSeg button").forEach(b=>b.onclick=()=>{IS12=(b.dataset.f==="12h");syncFmtSeg();render();});
 document.getElementById("yearSel").onchange=async e=>{const y=YEARS.find(v=>v.id===e.target.value);await loadYear(y);pickDefaultWeek();render();};
