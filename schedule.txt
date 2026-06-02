@@ -1,0 +1,17 @@
+# SSA Senior School - shared schedule definitions (same for all SS students)
+# Loaded by index.html alongside each student's personal file.
+
+# Fixed daily block(s) on every normal school day: name - HH:MM-HH:MM - room - color
+@fixed Assembly / Community Time - 10:05-10:30 - Rauh - gray
+
+# Immersive term daily blocks (the course itself is per-student): label - HH:MM-HH:MM
+@imm_block Morning Session 1 - 08:30-10:00
+@imm_block Community Time - 10:00-10:30
+@imm_block Morning Session 2 - 10:30-12:00
+@imm_block Lunch A - 12:00-13:00
+@imm_block Afternoon Session - 13:00-15:00
+
+# Dismissal lines (bold marker): daytype = HH:MM
+@dismiss normal = 15:00
+@dismiss immersive = 15:00
+@dismiss wednesday = 15:25

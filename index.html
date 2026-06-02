@@ -63,7 +63,8 @@
   .hline{position:absolute;left:0;right:0;border-top:1px dashed rgba(255,255,255,.05)}
 
   .block{position:absolute;left:4px;right:4px;border-radius:8px;padding:.35rem .45rem;overflow:hidden;border:1px solid rgba(255,255,255,.12);background:var(--blk,#222);color:#0c0c0c;font-size:.66rem;line-height:1.18;transition:.15s;cursor:pointer}
-  .block.expanded,.block:hover{height:auto!important;min-height:0;z-index:8;box-shadow:0 6px 18px rgba(0,0,0,.5);filter:brightness(1.06);border-color:rgba(255,255,255,.4)}
+  .block.expanded,.block:not(.dayfull):hover{height:auto!important;min-height:0;z-index:8;box-shadow:0 6px 18px rgba(0,0,0,.5);filter:brightness(1.06);border-color:rgba(255,255,255,.4)}
+  .block.dayfull{cursor:default}
   .block.now{box-shadow:0 0 0 2px var(--accent),0 4px 14px rgba(0,0,0,.4);z-index:6}
   .block .bname{font-weight:700;font-size:.72rem}
   .block .bnum{opacity:.85}
@@ -160,6 +161,16 @@ const STUDENTS=[
 
 /* ---- Embedded fallbacks ---- */
 const EMBED={
+ "school":
+`@fixed Assembly / Community Time - 10:05-10:30 - Rauh - gray
+@imm_block Morning Session 1 - 08:30-10:00
+@imm_block Community Time - 10:00-10:30
+@imm_block Morning Session 2 - 10:30-12:00
+@imm_block Lunch A - 12:00-13:00
+@imm_block Afternoon Session - 13:00-15:00
+@dismiss normal = 15:00
+@dismiss immersive = 15:00
+@dismiss wednesday = 15:25`,
  "2025-2026":
 `@anchor 2025-09-05 = 7
 @anchor 2025-11-06 = 5
@@ -220,11 +231,11 @@ const EMBED={
 05.04-05.08
 05.11-05.11
 05.12-05.12 "Evaluation Day" noclass
-05.13-05.15
-05.18-05.22
+05.13-05.15 "Immersive" immersive
+05.18-05.22 "Immersive" immersive
 05.25-05.25 "Memorial Day" noclass
-05.26-05.29
-06.01-06.02
+05.26-05.29 "Immersive" immersive
+06.01-06.02 "Immersive" immersive
 06.03-06.03 "Last Day / Early Dismissal" noclass
 06.04-06.04 "Evaluation Day" noclass`,
  "2026-2027":
@@ -277,12 +288,12 @@ const EMBED={
 05.03-05.07
 05.10-05.10
 05.11-05.11 "Evaluation Day" noclass
-05.12-05.14
+05.12-05.14 "Immersive" immersive
 05.17-05.17 "Evaluation Day" noclass
-05.18-05.21
-05.24-05.28
+05.18-05.21 "Immersive" immersive
+05.24-05.28 "Immersive" immersive
 05.31-05.31 "Memorial Day" noclass
-06.01-06.02
+06.01-06.02 "Immersive" immersive
 06.03-06.03 "Last Day / Early Dismissal" noclass
 06.04-06.04 "Evaluation Day" noclass`,
  student:
@@ -296,7 +307,8 @@ E - U.S. History - HI300 - 5 - Mr. Weiss - R 135 - orange
 F - Organic Chem. - CH410 - 2 - Mr. Grant - MC 208 - red
 G - Indian Lit. - EN4013 - 1 - Ms. Garvey - R 105 - yellow
 H - Organic Chem. - CH410 - 2 - Mr. Grant - MC 208 - red
-@fixed Assembly / Community Time - 10:05-10:30 - Rauh - gray
+@immersive Your Move - IM327 - Mr. Solomon, Ms. Wang, M. Roland - MC 110 - indigo
+@sport Swimming - Mon,Thu - 15:45-17:15 - 09.01-11.30 - cyan
 @latearly A=La B=Ea C=La D=Ea E=Ea F=La G=La H=Ea
 @day 1 = A:08:15-09:05 B:09:10-10:00 C:10:35-11:45 D:11:50-12:40 E:13:20-14:10 F:14:15-15:00
 @day 2 = G:08:15-09:05 D:09:10-10:00 E:10:35-11:45 A:13:20-14:10 B:14:15-15:00
@@ -333,11 +345,15 @@ function parseCalendar(txt,startYear){
 }
 
 function parseStudent(txt){
-  const s={name:"",form:"",classes:{},latearly:{},days:{},fixed:[],pref:{}};
+  const s={name:"",form:"",classes:{},latearly:{},days:{},fixed:[],imm:null,immBlocks:[],sports:[],pref:{}};
   let idx=0;
   for(const raw of txt.split(/\r?\n/)){
     const line=raw.trim();
     if(!line||line.startsWith("#")) continue;
+    if(line.startsWith("@immersive")){const p=line.replace("@immersive","").trim().split(" - ").map(x=>x.trim());s.imm={name:p[0],num:p[1],teacher:p[2],room:p[3],color:p[4]||"indigo"};continue;}
+    if(line.startsWith("@imm_block")){const p=line.replace("@imm_block","").trim().split(" - ").map(x=>x.trim());const r=(p[1]||"").split("-");if(r.length===2)s.immBlocks.push({label:p[0],start:r[0],end:r[1]});continue;}
+    if(line.startsWith("@dismiss")){const m=line.match(/^@dismiss\s+(\w+)\s*=\s*(\S+)/);if(m){s.dismiss=s.dismiss||{};s.dismiss[m[1]]=m[2];}continue;}
+    if(line.startsWith("@sport")){const p=line.replace("@sport","").trim().split(" - ").map(x=>x.trim());const t=(p[2]||"").split("-");const rg=(p[3]||"").split("-");s.sports.push({name:p[0],dows:(p[1]||"").split(",").map(x=>x.trim()),start:t[0],end:t[1],from:rg[0],to:rg[1],color:p[4]||"cyan"});continue;}
     if(line.startsWith("@fixed")){
       const p=line.replace("@fixed","").trim().split(" - ").map(x=>x.trim());
       const name=p[0],time=p[1],room=p[2],color=p[3];
@@ -365,13 +381,14 @@ function buildDayMap(parsed){
       const dow=d.getDay(), k=dkey(d);
       if(dow!==0&&dow!==6){
         if(isNo(b.type)) map[k]={cycle:null,name:b.name||"No Class",type:"noclass",school:false};
+        else if(b.type==="immersive") map[k]={cycle:null,name:b.name||"Immersive",type:"immersive",school:true,nocycle:true};
         else if(dow===3&&!b.name) map[k]={cycle:0,name:"Wednesday",type:"wednesday",school:true};
         else map[k]={cycle:0,name:b.name||"Normal Day",type:b.type||"normal",school:true};
       }
       d.setDate(d.getDate()+1);
     }
   }
-  const sdays=Object.keys(map).filter(k=>map[k].school).sort();
+  const sdays=Object.keys(map).filter(k=>map[k].school&&!map[k].nocycle).sort();
   const idxOf={}; sdays.forEach((k,i)=>idxOf[k]=i);
   const anc=anchors.slice().sort((a,b)=>a.date-b.date).filter(a=>dkey(a.date) in idxOf);
   for(const k of sdays){
@@ -388,11 +405,11 @@ function buildDayMap(parsed){
 }
 
 /* ---- state ---- */
-let DAYMAP={}, MAPINFO={}, STU=null, IS12=true, weekStart=null, curYear=YEARS[0];
+let DAYMAP={}, MAPINFO={}, STU=null, SCHOOL=null, IS12=true, weekStart=null, curYear=YEARS[0];
 function mondayOf(d){const x=new Date(d);const dow=x.getDay();x.setDate(x.getDate()+(dow===0?-6:1-dow));x.setHours(0,0,0,0);return x;}
 
 /* ---- rendering ---- */
-const AX_START=8*60, AX_END=15*60+30, PX_PER_MIN=1.05, BODY_H=(AX_END-AX_START)*PX_PER_MIN;
+const AX_START=8*60, AX_END=18*60, PX_PER_MIN=1.05, BODY_H=(AX_END-AX_START)*PX_PER_MIN;
 
 function render(){
   const ghead=document.getElementById("ghead"), gbody=document.getElementById("gbody");
@@ -412,7 +429,7 @@ function render(){
   }
   gbody.style.height=BODY_H+"px";
   const axis=document.createElement("div");axis.className="axis";axis.style.height=BODY_H+"px";
-  for(let h=8;h<=15;h++){const tick=document.createElement("div");tick.className="tick";tick.style.top=((h*60-AX_START)*PX_PER_MIN)+"px";tick.textContent=IS12?fmtTime(h*60,true):pad(h)+":00";axis.appendChild(tick);}
+  for(let h=8;h<=18;h++){const tick=document.createElement("div");tick.className="tick";tick.style.top=((h*60-AX_START)*PX_PER_MIN)+"px";tick.textContent=IS12?fmtTime(h*60,true):pad(h)+":00";axis.appendChild(tick);}
   gbody.appendChild(axis);
 
   const now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
@@ -420,9 +437,14 @@ function render(){
     const k=dkey(d), info=DAYMAP[k];
     const col=document.createElement("div");col.className="col";col.style.height=BODY_H+"px";
     if(k===todayKey)col.classList.add("today");
-    for(let h=8;h<=15;h++){const hl=document.createElement("div");hl.className="hline";hl.style.top=((h*60-AX_START)*PX_PER_MIN)+"px";col.appendChild(hl);}
+    for(let h=8;h<=18;h++){const hl=document.createElement("div");hl.className="hline";hl.style.top=((h*60-AX_START)*PX_PER_MIN)+"px";col.appendChild(hl);}
 
-    if(info&&info.school&&info.cycle&&STU){
+    if(info&&info.type==="immersive"&&STU&&STU.imm){
+      (STU.immBlocks||[]).forEach(b=>{
+        const sess=/Session|Afternoon|Morning/.test(b.label);
+        addBlock(col,k,todayKey,nowMin,{color:COLOR_MAP[STU.imm.color]||"#9aa6ff",start:toMin(b.start),end:toMin(b.end),name:sess?STU.imm.name:b.label,num:sess?STU.imm.num:"",per:sess?b.label:"",teach:sess?`${STU.imm.teacher} \u00b7 ${STU.imm.room}`:""});
+      });
+    } else if(info&&info.school&&info.cycle&&STU){
       (STU.days[String(info.cycle)]||[]).forEach(item=>{
         const cls=STU.classes[item.p];if(!cls)return;
         addBlock(col,k,todayKey,nowMin,{
@@ -437,7 +459,22 @@ function render(){
         addBlock(col,k,todayKey,nowMin,{fixed:true,start:toMin(f.start),end:toMin(f.end),name:f.name,teach:f.room||""});
       });
     } else if(info&&!info.school){
-      const blk=document.createElement("div");blk.className="block";blk.style.setProperty("--blk","#262d3b");blk.style.color="#cfd6e2";blk.style.top="0";blk.style.height=BODY_H+"px";blk.style.display="grid";blk.style.placeItems="center";blk.style.borderStyle="dashed";blk.innerHTML=`<div class="bname" style="opacity:.85">${info.name}</div>`;col.appendChild(blk);
+      const blk=document.createElement("div");blk.className="block dayfull";blk.style.setProperty("--blk","#262d3b");blk.style.color="#cfd6e2";blk.style.top="0";blk.style.height=BODY_H+"px";blk.style.display="grid";blk.style.placeItems="center";blk.style.borderStyle="dashed";blk.innerHTML=`<div class="bname" style="opacity:.85">${info.name}</div>`;col.appendChild(blk);
+    }
+    // sports (any school day matching weekday + date range)
+    if(info&&info.school&&STU&&STU.sports){
+      const DN=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()];
+      const mmdd=pad(d.getMonth()+1)+"."+pad(d.getDate());
+      STU.sports.forEach(sp=>{
+        if(!sp.dows.includes(DN))return;
+        if(sp.from&&sp.to&&!(mmdd>=sp.from&&mmdd<=sp.to))return;
+        addBlock(col,k,todayKey,nowMin,{color:COLOR_MAP[sp.color]||"#79f0ff",start:toMin(sp.start),end:toMin(sp.end),name:sp.name,per:"Athletics"});
+      });
+    }
+    // dismissal line: 3:00 normal/immersive, 3:25 Wednesday
+    if(info&&info.school&&STU.dismiss){
+      const dt=STU.dismiss[info.type==="wednesday"?"wednesday":(info.type==="immersive"?"immersive":"normal")];
+      if(dt){const dis=toMin(dt);const dl=document.createElement("div");dl.style.cssText=`position:absolute;left:0;right:0;top:${(dis-AX_START)*PX_PER_MIN}px;border-top:2px solid rgba(255,210,63,.5);z-index:4`;col.appendChild(dl);}
     }
     if(k===todayKey&&nowMin>=AX_START&&nowMin<=AX_END){const bar=document.createElement("div");bar.className="nowbar";bar.style.top=((nowMin-AX_START)*PX_PER_MIN)+"px";col.appendChild(bar);}
     gbody.appendChild(col);
@@ -460,7 +497,7 @@ function addBlock(col,k,todayKey,nowMin,o){
     (o.teach?`<div class="bteach">${o.teach}</div>`:"")+
     `<div class="btime">${tline}</div>`;
   // collapsed = exactly 3 full text rows; overflow hidden so no partial 4th line
-  const collapsed=44;
+  const collapsed=o.fixed?20:48;
   blk.style.height=collapsed+"px";
   if(k===todayKey&&nowMin>=o.start&&nowMin<o.end)blk.classList.add("now");
   col.appendChild(blk);
@@ -493,8 +530,13 @@ async function loadYear(y){
 }
 
 async function loadStudent(stu){
+  if(!SCHOOL){const sr=await tryFetch("schedule.txt", EMBED.school);SCHOOL=parseStudent(sr.text);}
   const res=await tryFetch(stu.path, EMBED.student);
   STU=parseStudent(res.text);
+  // merge school-wide shared definitions
+  STU.fixed=SCHOOL.fixed||[];
+  STU.immBlocks=SCHOOL.immBlocks||[];
+  STU.dismiss=SCHOOL.dismiss||{normal:"15:00",immersive:"15:00",wednesday:"15:25"};
   if(STU.pref.background)document.documentElement.style.setProperty("--bg",STU.pref.background);
   if(STU.pref.highlight_class)document.documentElement.style.setProperty("--accent",STU.pref.highlight_class);
   if(STU.pref.highlight_day)document.documentElement.style.setProperty("--today",STU.pref.highlight_day);
