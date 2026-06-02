@@ -62,7 +62,8 @@
   .col.today{background:rgba(255,255,255,.025)}
   .hline{position:absolute;left:0;right:0;border-top:1px dashed rgba(255,255,255,.05)}
 
-  .block{position:absolute;left:4px;right:4px;border-radius:8px;padding:.35rem .45rem;overflow:hidden;border:1px solid rgba(255,255,255,.12);background:var(--blk,#222);color:#0c0c0c;font-size:.66rem;line-height:1.18;transition:.15s}
+  .block{position:absolute;left:4px;right:4px;border-radius:8px;padding:.35rem .45rem;overflow:hidden;border:1px solid rgba(255,255,255,.12);background:var(--blk,#222);color:#0c0c0c;font-size:.66rem;line-height:1.18;transition:.15s;cursor:pointer}
+  .block.expanded{height:auto!important;min-height:0;z-index:8;box-shadow:0 6px 18px rgba(0,0,0,.5)}
   .block:hover{filter:brightness(1.06);z-index:5;border-color:rgba(255,255,255,.4)}
   .block.now{box-shadow:0 0 0 2px var(--accent),0 4px 14px rgba(0,0,0,.4);z-index:6}
   .block .bname{font-weight:700;font-size:.72rem}
@@ -449,16 +450,24 @@ function render(){
 }
 
 function addBlock(col,k,todayKey,nowMin,o){
-  const top=(o.start-AX_START)*PX_PER_MIN, h=(o.end-o.start)*PX_PER_MIN;
+  const top=(o.start-AX_START)*PX_PER_MIN, dur=(o.end-o.start)*PX_PER_MIN;
   const blk=document.createElement("div");blk.className="block"+(o.fixed?" fixed":"");
   if(!o.fixed)blk.style.setProperty("--blk",o.color);
-  blk.style.top=top+"px";blk.style.height=Math.max(h,24)+"px";
+  blk.style.top=top+"px";
   const tline=`${fmtTime(o.start,IS12)} \u2013 ${fmtTime(o.end,IS12)}`;
   blk.innerHTML=`<div class="bname">${o.name}</div>`+
     (o.num?`<div class="bnum">${o.num}${o.sec?(" \u00b7 "+o.sec):""}</div>`:"")+
     (o.per?`<div class="bper">${o.per}</div>`:"")+
     (o.teach?`<div class="bteach">${o.teach}</div>`:"")+
     `<div class="btime">${tline}</div>`;
+  // collapsed = exactly 3 text rows (~16px each + padding), no half-cut 4th row
+  const collapsed=Math.min(Math.max(dur,24),52);
+  blk.style.height=collapsed+"px";
+  blk.dataset.collapsed=collapsed;
+  blk.onclick=()=>{
+    if(blk.classList.toggle("expanded")){blk.style.height="auto";}
+    else{blk.style.height=blk.dataset.collapsed+"px";}
+  };
   if(k===todayKey&&nowMin>=o.start&&nowMin<o.end)blk.classList.add("now");
   col.appendChild(blk);
 }
