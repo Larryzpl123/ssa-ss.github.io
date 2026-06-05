@@ -1,2 +1,3 @@
 # SSA student schedule index. Format: classYear | lastName | firstName | path
 27 | Zhong | Pei Lin | students/27/zhongp.txt
+27 | Gong | Ryan | students/27/gongr.txt
