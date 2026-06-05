@@ -1,0 +1,21 @@
+Ryan Gong
+Junior - Upper Form
+# Classes: period - name - number - section - teacher - room - color
+A - Fractal Geo./Chaos Theory - MA512 - 1 - Ms. Boyer - MC 212 - red
+B - Lit. of South America - EN4016 - 2 - Mr. Hogan - R 205 - cyan
+C - Physics 2 (Calc.) - PY430 - 1 - Dr. Peterson - MC 111 - green
+D - Art Core - AR100 - 9 - Ms. Parlour - BC Studio - teal
+E - Multivariable Calculus - MA570 - 1 - Mrs. Yam - R 202 - red
+F - Latin 2 - LA200 - 1 - Ms. Belles - R 211 - purple
+G - Physics 2 (Calc.) - PY430 - 1 - Dr. Peterson - MC 111 - green
+H - U.S. History - HI300 - 1 - Mr. Solomon - R 310 - yellow
+# Fixed daily block(s) shown on every school day (name - number - teacher - room - color):
+@immersive Your Move - IM327 - Mr. Janosko, Dr. Renock, Ms. Powers - MC 202 - indigo
+# Sports: name - Days(Mon,Thu) - HH:MM-HH:MM - StartMon.Day-EndMon.Day - color
+@sport Swimming - Mon,Fri - 15:45-17:15 - 11.26-2.10 - cyan
+# Preferences:
+@pref background = #0d0f14
+@pref highlight_day = #ffffff
+@pref highlight_class = #ffd23f
+@pref time_format = 24h
+@pref clock_format = ddd, MMM D, YYYY - HH:mm:ss
