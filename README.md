@@ -17,7 +17,7 @@ It handles the school’s **8‑day rotating cycle**, **immersive terms**, **com
 - 📦 **Fully offline** – Embedded fallback data for the school’s shared definitions, a sample student, and two sample years. No server required to explore the interface.
 - 🔌 **Live data** – The repository already includes real text files for the schedule, calendar, and student data, so you can serve it locally and see live schedules.
 
----
+--- 
 
 ## Quick start
 
