@@ -1,14 +1,14 @@
 Pei Lin Zhong
 Junior - Upper Form
 # Classes: period - name - number - section - teacher - room - color
-A - AP Calculus BC - MA560 - 1 - Mrs. Yam - R 202 - blue
-B - French 2 - FR200 - 1 - Ms. Lembrechts - C 3 - green
-C - Psychology - PS400 - 2 - Mrs. Fani - MC 222 - purple
-D - Robotics - CS301 - 1 - Ms. Wang - GH 031 - teal
-E - U.S. History - HI300 - 5 - Mr. Weiss - R 135 - orange
-F - Organic Chem. - CH410 - 2 - Mr. Grant - MC 208 - red
-G - Indian Lit. - EN4013 - 1 - Ms. Garvey - R 105 - yellow
-H - Organic Chem. - CH410 - 2 - Mr. Grant - MC 208 - red
+A - AP Calculus BC - MA560 - 1 - Mrs. Yam - R 202 - red
+B - French 2 - FR200 - 1 - Ms. Lembrechts - C 3 - purle
+C - Psychology - PS400 - 2 - Mrs. Fani - MC 222 - teal
+D - Robotics - CS301 - 1 - Ms. Wang - GH 031 - orange
+E - U.S. History - HI300 - 5 - Mr. Weiss - R 135 - yellow
+F - Organic Chem. - CH410 - 2 - Mr. Grant - MC 208 - green
+G - Indian Lit. - EN4013 - 1 - Ms. Garvey - R 105 - blue
+H - Organic Chem. - CH410 - 2 - Mr. Grant - MC 208 - green
 # Fixed daily block(s) shown on every school day (name - time - room - color):
 @immersive Your Move - IM327 - Mr. Solomon, Ms. Wang, M. Roland - MC 110 - indigo
 # Sports: name - Days(Mon,Thu) - HH:MM-HH:MM - StartMon.Day-EndMon.Day - color
