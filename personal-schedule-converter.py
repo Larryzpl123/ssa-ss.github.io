@@ -2,10 +2,12 @@
 """
 SSA Smart Schedule - Personal Schedule Converter
 =================================================
-Interactively builds a personal-schedule .txt file readable by index.html.
+Builds a personal-schedule .txt in the term-based format read by index.html.
 
-It asks for each class (by period letter A-H) and the 8-day rotation, then
-writes <username>.txt in the format the web app expects.
+The 8-day rotation, La/Ea tags, Assembly/community time, Wednesday bell times,
+immersive blocks, dismissal, and finals all live in the shared schedule.txt now.
+A personal file only contains: name, grade line, and one or more @term sections
+(each with classes A-H plus optional @immersive / @sport), then @pref lines.
 
 Run:  python3 personal-schedule-converter.py
 """
@@ -15,8 +17,8 @@ import sys
 
 COLORS = ["red", "green", "blue", "yellow", "purple", "teal", "orange",
           "pink", "gray", "indigo", "lime", "cyan"]
-
 PERIOD_LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"]
+GRADES = {"9": "Freshman", "10": "Sophomore", "11": "Junior", "12": "Senior"}
 
 
 def ask(prompt, default=None):
@@ -25,130 +27,117 @@ def ask(prompt, default=None):
     return val if val else (default if default is not None else "")
 
 
-def norm_time(t):
-    """Accept '8:15', '08:15', '1:20pm', '13:20' -> 'HH:MM' 24h."""
-    t = t.strip().lower().replace(" ", "")
-    pm = t.endswith("pm")
-    am = t.endswith("am")
-    t = t.replace("am", "").replace("pm", "")
-    if ":" not in t:
-        t = t + ":00"
-    h, m = t.split(":")
-    h, m = int(h), int(m)
-    if pm and h != 12:
-        h += 12
-    if am and h == 12:
-        h = 0
-    # bare hour < 8 assume afternoon (school context)
-    if not pm and not am and h < 8:
-        h += 12
-    return f"{h:02d}:{m:02d}"
+def norm_md(s):
+    s = s.strip().replace("/", ".").replace("-", ".")
+    m = re.match(r"(\d{1,2})\.(\d{1,2})", s)
+    if not m:
+        return s
+    return f"{int(m.group(1)):02d}.{int(m.group(2)):02d}"
 
 
-def parse_range(r):
-    """'8:15-9:05' or '8:15 - 9:05' -> '08:15-09:05'."""
-    a, b = re.split(r"\s*-\s*", r, maxsplit=1)
-    return f"{norm_time(a)}-{norm_time(b)}"
+def ask_term(label_default, range_default):
+    label = ask("  Term label (e.g. 'Fall 2025', blank to finish)", label_default)
+    if not label:
+        return None
+    rng = ask("  Date range MM.DD-MM.DD", range_default)
+    a, b = re.split(r"\s*-\s*", rng, maxsplit=1)
+    classes = {}
+    print("  Classes for this term (blank name = skip; H blank = Unscheduled):")
+    for letter in PERIOD_LETTERS:
+        nm = ask(f"    {letter} name")
+        if not nm:
+            if letter == "H":
+                classes[letter] = ("Unscheduled", "", "", "", "", "gray")
+            continue
+        num = ask(f"    {letter} number", "")
+        sec = ask(f"    {letter} section", "1")
+        teacher = ask(f"    {letter} teacher", "")
+        room = ask(f"    {letter} room", "")
+        color = ask(f"    {letter} color {COLORS}", "blue")
+        classes[letter] = (nm, num, sec, teacher, room, color)
+
+    imm = None
+    iname = ask("  Immersive course name (blank = none)")
+    if iname:
+        inum = ask("    number", "IM327")
+        iteach = ask("    teacher(s)", "")
+        iroom = ask("    room", "")
+        icolor = ask("    color", "indigo")
+        imm = (iname, inum, iteach, iroom, icolor)
+
+    sports = []
+    while True:
+        sname = ask("  Sport name (blank = done)")
+        if not sname:
+            break
+        sdays = ask("    days (e.g. Mon,Thu)", "Mon,Thu")
+        stime = ask("    time HH:MM-HH:MM", "15:45-17:15")
+        srange = ask("    season MM.DD-MM.DD", "09.01-11.30")
+        scolor = ask("    color", "cyan")
+        sports.append((sname, sdays, stime, srange, scolor))
+
+    return {"label": label, "from": norm_md(a), "to": norm_md(b),
+            "classes": classes, "imm": imm, "sports": sports}
 
 
 def main():
     print("=" * 56)
     print("  SSA Smart Schedule - Personal Schedule Converter")
     print("=" * 56)
-    print("Tip: copy a friend's choices fast by reusing their answers.\n")
+    print("Tip: reuse a friend's answers; often only one class differs.\n")
 
     name = ask("Student full name", "Pei Lin Zhong")
-    form = ask("Form line (e.g. 'Junior - Upper Form')", "Junior - Upper Form")
-    username = ask("Username for filename (e.g. 27zhongp)", "27zhongp")
+    grade = ask("Grade (9/10/11/12)", "11")
+    grade_word = GRADES.get(grade, "Junior")
+    classyr = ask("Class year for filename folder (e.g. 27)", "27")
+    last = ask("Last name for filename (e.g. zhongp = zhong + p)", "zhongp")
 
-    classes = {}
-    print("\n--- Classes (enter blank Name to stop) ---")
-    for letter in PERIOD_LETTERS:
-        print(f"\nPeriod {letter}:")
-        nm = ask("  Class name (blank = skip/unscheduled)")
-        if not nm:
-            # default H to Unscheduled, others skipped
-            if letter == "H":
-                classes[letter] = ("Unscheduled", "", "", "", "", "gray")
-            continue
-        num = ask("  Class number (e.g. CH410)")
-        sec = ask("  Section (e.g. 1)", "1")
-        teacher = ask("  Teacher (e.g. Mr. Grant)")
-        room = ask("  Room (e.g. MC 208)")
-        color = ask(f"  Color {COLORS}", "blue")
-        classes[letter] = (nm, num, sec, teacher, room, color)
+    print("\n--- Terms (add as many as needed) ---")
+    terms = []
+    defaults = [("Fall 2025", "08.26-01.16"), ("Spring 2026", "01.20-06.30")]
+    i = 0
+    while True:
+        ld, rd = defaults[i] if i < len(defaults) else ("", "")
+        print(f"\nTerm {i + 1}:")
+        t = ask_term(ld, rd)
+        if not t:
+            break
+        terms.append(t)
+        i += 1
+        if ask("Add another term? (y/n)", "n").lower() != "y":
+            break
 
-    # La/Ea tags
-    print("\n--- Late/Early tag per period (La or Ea) ---")
-    latearly = {}
-    for letter in classes:
-        latearly[letter] = ask(f"  {letter} La/Ea", "La") or "La"
-
-    # Fixed daily blocks (e.g. Assembly)
-    print("\n--- Fixed daily block (shown every school day; blank to skip) ---")
-    fixed = []
-    fb_name = ask("  Block name (e.g. Assembly / Community Time)")
-    if fb_name:
-        fb_time = ask("  Time range (e.g. 10:05-10:30)", "10:05-10:30")
-        fb_room = ask("  Room", "Rauh")
-        fb_color = ask("  Color", "gray")
-        try:
-            fixed.append((fb_name, parse_range(fb_time), fb_room, fb_color))
-        except Exception:
-            print("  (couldn't parse time, skipping fixed block)")
-
-    # Rotation grid
-    print("\n--- 8-Day rotation ---")
-    print("For each cycle day, enter pairs like: A:8:15-9:05 B:9:10-10:00")
-    print("(Use period letters you defined; blank day = no classes)\n")
-    days = {}
-    for d in range(1, 9):
-        raw = ask(f"  Day {d}")
-        if not raw:
-            days[d] = []
-            continue
-        pairs = []
-        for tok in raw.split():
-            if ":" not in tok:
-                continue
-            p, rng = tok.split(":", 1)
-            p = p.upper()
-            pairs.append(f"{p}:{parse_range(rng)}")
-        days[d] = pairs
-
-    # Preferences
-    print("\n--- Preferences (press Enter for defaults) ---")
+    print("\n--- Preferences ---")
     bg = ask("  Background color", "#0d0f14")
     hday = ask("  Highlight-day border color", "#ffffff")
     hclass = ask("  Highlight-class border color", "#ffd23f")
     tfmt = ask("  Time format (12h/24h)", "12h")
 
-    # Build file
-    out = [name, form, "# Classes: period - name - number - section - teacher - room - color"]
-    for letter in PERIOD_LETTERS:
-        if letter in classes:
-            nm, num, sec, teacher, room, color = classes[letter]
-            out.append(f"{letter} - {nm} - {num} - {sec} - {teacher} - {room} - {color}")
-    out.append("# La/Ea tag per period:")
-    out.append("@latearly " + " ".join(f"{k}={v}" for k, v in latearly.items()))
-    for fb in fixed:
-        out.append(f"@fixed {fb[0]} - {fb[1].replace('-', '-')} - {fb[2]} - {fb[3]}")
-    out.append("# Rotation: each cycle day -> period:HH:MM-HH:MM (24h)")
-    for d in range(1, 9):
-        out.append(f"@day {d} = " + " ".join(days[d]))
-    out.append("# Preferences:")
-    out.append(f"@pref background = {bg}")
-    out.append(f"@pref highlight_day = {hday}")
-    out.append(f"@pref highlight_class = {hclass}")
-    out.append(f"@pref time_format = {tfmt}")
+    out = [name, f"{classyr} - {grade_word}", ""]
+    for t in terms:
+        out.append(f"@term {t['label']} = {t['from']}-{t['to']}")
+        for letter in PERIOD_LETTERS:
+            if letter in t["classes"]:
+                nm, num, sec, teacher, room, color = t["classes"][letter]
+                out.append(f"{letter} - {nm} - {num} - {sec} - {teacher} - {room} - {color}")
+        if t["imm"]:
+            nm, num, teach, room, color = t["imm"]
+            out.append(f"@immersive {nm} - {num} - {teach} - {room} - {color}")
+        for s in t["sports"]:
+            out.append(f"@sport {s[0]} - {s[1]} - {s[2]} - {s[3]} - {s[4]}")
+        out.append("")
+    out.append("@pref background = " + bg)
+    out.append("@pref highlight_day = " + hday)
+    out.append("@pref highlight_class = " + hclass)
+    out.append("@pref time_format = " + tfmt)
 
-    fname = f"{username}.txt"
+    fname = f"{last}.txt"
     with open(fname, "w", encoding="utf-8") as f:
         f.write("\n".join(out) + "\n")
 
     print(f"\nWrote {fname}")
-    print("Place it in: students/classof<YEAR>/" + fname)
-    print("Then open index.html and load this student.\n")
+    print(f"Place it in: students/{classyr}/{fname}")
+    print(f"Add to students/index.txt:  {classyr} | <Last> | <First> | students/{classyr}/{fname}")
 
 
 if __name__ == "__main__":
