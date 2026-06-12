@@ -63,7 +63,9 @@
   .hline{position:absolute;left:0;right:0;border-top:1px dashed rgba(255,255,255,.05)}
 
   .block{position:absolute;left:4px;right:4px;border-radius:8px;padding:.35rem .45rem;overflow:hidden;border:1px solid rgba(255,255,255,.12);background:var(--blk,#222);color:#0c0c0c;font-size:.66rem;line-height:1.18;transition:.15s;cursor:pointer}
-  .block.expanded,.block:not(.dayfull):hover{height:auto!important;min-height:0;z-index:8;box-shadow:0 6px 18px rgba(0,0,0,.5);filter:brightness(1.06);border-color:rgba(255,255,255,.4)}
+  .block .bextra{max-height:0;opacity:0;overflow:hidden;transition:opacity .25s ease,max-height .25s ease}
+  .block:not(.dayfull):hover{z-index:8;box-shadow:0 6px 18px rgba(0,0,0,.5);filter:brightness(1.06);border-color:rgba(255,255,255,.4)}
+  .block:not(.dayfull):hover .bextra{max-height:200px;opacity:1}
   .block.dayfull{cursor:default}
   .block.now{box-shadow:0 0 0 2px var(--accent),0 4px 14px rgba(0,0,0,.4);z-index:6}
   .block .bname{font-weight:700;font-size:.72rem}
@@ -112,7 +114,7 @@
   <button id="pickBtn">Pick date ▾</button>
   <select id="yearSel" title="School year"></select>
   <div style="position:relative">
-    <input id="stuSearch" placeholder="Search user (ssa username, start of email)" autocomplete="off" style="width:24rem">
+    <input id="stuSearch" placeholder="Search student (ssa username, start of email)" autocomplete="off" style="width:24rem">
     <div id="stuResults" style="position:absolute;top:110%;left:0;right:0;background:var(--panel);border:1px solid var(--line);border-radius:8px;max-height:240px;overflow:auto;z-index:30;display:none"></div>
   </div>
   <div class="spacer"></div>
@@ -223,13 +225,43 @@ const EMBED={
 @wed 11:50 => 12:20-13:10
 @wed 12:25 => 12:45-13:35
 @wed 13:20 => 13:40-14:30
-@wed 14:15 => 14:35-15:25`,
+@wed 14:15 => 14:35-15:25
+
+# ---- Semester finals / final assessments ----
+# Grade-aware. Format: @finals MM.DD | grades | Label - HH:MM-HH:MM
+# grades = ALL, or a list like 9,10 or 11,12. App shows blocks matching student's grade.
+@finals 12.17 | 11,12 | History Assessment - 08:30-10:00
+@finals 12.17 | 9,10 | English Assessment - 08:30-10:00
+@finals 12.17 | ALL | Computer Science Assessment - 11:00-12:30
+@finals 12.17 | ALL | World Language Assessment - 13:30-15:00
+@finals 12.18 | 11,12 | English Assessment - 08:00-10:00
+@finals 12.18 | 9,10 | History Assessment - 08:00-10:00
+@finals 12.18 | ALL | Tech & Design Assessment - 11:00-12:30
+@finals 12.18 | ALL | Math Assessment - 13:00-15:00
+@finals 12.19 | ALL | Science Assessment - 08:30-10:00
+@finals 12.19 | ALL | Art Assessment - 11:00-12:30
+@finals 12.19 | ALL | Conflict / Make-up - 13:30-15:00`,
  "2025-2026":
-`@anchor 2025-09-05 = 7
+`# SSA Senior School Academic Calendar 2025-2026
+# Source: official SSA Academic Calendar (Aug 4 2025 - Jun 10 2026)
+#
+# FORMAT
+#   month.daystart-month.dayend  "Optional Day Name"  daytype
+#   daytype: normal | wednesday | review_day | final_exam_day |
+#            standard-test-day | holiday | noclass  (omit = normal)
+#   noclass = no school AND does not advance the 8-day cycle.
+#   Wednesdays inside a normal range auto-use the wednesday schedule.
+#   Dates not covered by any line = NA (outside school year).
+#
+# ANCHORS: ground truth for the 8-day cycle. Other school days are counted
+#   forward/backward from the nearest anchor (school days only).
+#   After a snow day / disruption, add a new @anchor right after it to re-sync.
+@anchor 2025-09-05 = 7
 @anchor 2025-11-06 = 5
 @anchor 2026-03-30 = 3
 @anchor 2026-04-06 = 7
 @anchor 2026-05-04 = 2
+
 08.26-08.29
 09.01-09.01 "Labor Day" noclass
 09.02-09.05
@@ -256,8 +288,10 @@ const EMBED={
 11.25-11.28 "Thanksgiving Break" noclass
 12.01-12.05
 12.08-12.12
-12.15-12.18
-12.19-12.19 "Winter Recess" noclass
+12.15-12.16
+12.17-12.17 "Final Assessments" finals
+12.18-12.18 "Final Assessments" finals
+12.19-12.19 "Final Assessments" finals
 12.22-01.04 "Winter Recess" noclass
 01.05-01.09
 01.12-01.16
@@ -351,7 +385,24 @@ const EMBED={
 06.04-06.04 "Evaluation Day" noclass`,
  student:
 `Pei Lin Zhong
-Junior - Upper Form
+27 - Junior
+
+# Each @term has its own classes + date range. App picks the term by date.
+# @term LABEL = MM.DD-MM.DD   (within the school year; spans handled by app)
+# Then classes A-H, then optional @immersive / @sport for that term.
+
+@term Fall 2025 = 08.26-01.16
+A - AP Calculus BC - MA560 - 1 - Mrs. Yam - R 202 - blue
+B - French 2 - FR200 - 1 - Ms. Lembrechts - C 3 - green
+C - Psychology - PS400 - 2 - Mrs. Fani - MC 222 - purple
+D - Unscheduled - - - - - gray
+E - U.S. History - HI300 - 5 - Mr. Weiss - R 135 - orange
+F - Organic Chem. - CH410 - 2 - Mr. Grant - MC 208 - red
+G - World Lit. - EN3011 - 1 - Ms. Lynch - R 304 - yellow
+H - Organic Chem. - CH410 - 2 - Mr. Grant - MC 208 - red
+@sport Swimming - Mon,Thu - 15:45-17:15 - 09.01-11.30 - cyan
+
+@term Spring 2026 = 01.20-06.30
 A - AP Calculus BC - MA560 - 1 - Mrs. Yam - R 202 - blue
 B - French 2 - FR200 - 1 - Ms. Lembrechts - C 3 - green
 C - Psychology - PS400 - 2 - Mrs. Fani - MC 222 - purple
@@ -361,17 +412,10 @@ F - Organic Chem. - CH410 - 2 - Mr. Grant - MC 208 - red
 G - Indian Lit. - EN4013 - 1 - Ms. Garvey - R 105 - yellow
 H - Organic Chem. - CH410 - 2 - Mr. Grant - MC 208 - red
 @immersive Your Move - IM327 - Mr. Solomon, Ms. Wang, M. Roland - MC 110 - indigo
-@sport Swimming - Mon,Thu - 15:45-17:15 - 09.01-11.30 - cyan
-@latearly A=La B=Ea C=La D=Ea E=Ea F=La G=La H=Ea
-@day 1 = A:08:15-09:05 B:09:10-10:00 C:10:35-11:45 D:11:50-12:40 E:13:20-14:10 F:14:15-15:00
-@day 2 = G:08:15-09:05 D:09:10-10:00 E:10:35-11:45 A:13:20-14:10 B:14:15-15:00
-@day 3 = F:08:15-09:05 H:09:10-10:00 A:10:35-11:45 C:12:25-13:15 G:13:20-14:10 D:14:15-15:00
-@day 4 = B:08:15-09:05 C:09:10-10:00 G:10:35-11:45 E:11:50-12:40 F:13:20-14:10
-@day 5 = D:08:15-09:05 E:09:10-10:00 F:10:35-11:45 A:12:25-13:15 B:13:20-14:10 C:14:15-15:00
-@day 6 = H:08:15-09:05 A:09:10-10:00 B:10:35-11:45 G:12:25-13:15 D:13:20-14:10 E:14:15-15:00
-@day 7 = C:08:15-09:05 G:09:10-10:00 D:10:35-11:45 F:12:25-13:15 H:13:20-14:10 A:14:15-15:00
-@day 8 = E:08:15-09:05 F:09:10-10:00 H:10:35-11:45 B:11:50-12:40 C:13:20-14:10 G:14:15-15:00
+
+# Preferences (apply to all terms):
 @pref background = #0d0f14
+@pref highlight_day = #ffffff
 @pref highlight_class = #ffd23f
 @pref time_format = 12h`
 };
@@ -398,33 +442,42 @@ function parseCalendar(txt,startYear){
 }
 
 function parseStudent(txt){
-  const s={name:"",form:"",classes:{},latearly:{},days:{},fixed:[],imm:null,immBlocks:[],sports:[],pref:{}};
-  let idx=0;
+  const s={name:"",form:"",classes:{},latearly:{},days:{},fixed:[],imm:null,immBlocks:[],sports:[],pref:{},terms:[]};
+  let idx=0, curTerm=null;
+  const ensureTerm=()=>{ if(!curTerm){curTerm={label:"All Year",from:null,to:null,classes:{},imm:null,sports:[]};s.terms.push(curTerm);} return curTerm; };
   for(const raw of txt.split(/\r?\n/)){
     const line=raw.trim();
     if(!line||line.startsWith("#")) continue;
-    if(line.startsWith("@immersive")){const p=line.replace("@immersive","").trim().split(" - ").map(x=>x.trim());s.imm={name:p[0],num:p[1],teacher:p[2],room:p[3],color:p[4]||"indigo"};continue;}
+    if(line.startsWith("@finals")){const m=line.match(/^@finals\s+(\d{2}\.\d{2})\s*\|\s*([^|]+?)\s*\|\s*(.*?)\s*-\s*(\d{1,2}:\d{2})-(\d{1,2}:\d{2})/);if(m){s.finals=s.finals||{};(s.finals[m[1]]=s.finals[m[1]]||[]).push({grades:m[2].trim(),label:m[3].trim(),start:m[4],end:m[5]});}continue;}
+    if(line.startsWith("@term")){const m=line.match(/^@term\s+(.*?)\s*=\s*(\d{2}\.\d{2})-(\d{2}\.\d{2})/);if(m){curTerm={label:m[1],from:m[2],to:m[3],classes:{},imm:null,sports:[]};s.terms.push(curTerm);}continue;}
+    if(line.startsWith("@immersive")){const p=line.replace("@immersive","").trim().split(" - ").map(x=>x.trim());const im={name:p[0],num:p[1],teacher:p[2],room:p[3],color:p[4]||"indigo"};if(s.terms.length){ensureTerm().imm=im;}else s.imm=im;continue;}
     if(line.startsWith("@imm_block")){const p=line.replace("@imm_block","").trim().split(" - ").map(x=>x.trim());const r=(p[1]||"").split("-");if(r.length===2)s.immBlocks.push({label:p[0],start:r[0],end:r[1]});continue;}
     if(line.startsWith("@imm_community")){const m=line.match(/^@imm_community\s+(\w+)\s*=\s*(.*)$/);if(m){s.immComm=s.immComm||{};if(m[1]==="time"){const r=m[2].split("-");s.immComm.time={start:r[0],end:r[1]};}else s.immComm[m[1]]=m[2].trim();}continue;}
     if(line.startsWith("@community")){const m=line.match(/^@community\s+(\w+)\s*=\s*(.*)$/);if(m){s.comm=s.comm||{};if(m[1]==="time"){const r=m[2].split("-");s.comm.time={start:r[0],end:r[1]};}else s.comm[m[1]]=m[2].trim();}continue;}
     if(line.startsWith("@wed")){const m=line.match(/^@wed\s+(\d{1,2}:\d{2})\s*=>\s*(\d{1,2}:\d{2})-(\d{1,2}:\d{2})/);if(m){s.wed=s.wed||{};s.wed[m[1]]={start:m[2],end:m[3]};}continue;}
     if(line.startsWith("@dismiss")){const m=line.match(/^@dismiss\s+(\w+)\s*=\s*(\S+)/);if(m){s.dismiss=s.dismiss||{};s.dismiss[m[1]]=m[2];}continue;}
-    if(line.startsWith("@sport")){const p=line.replace("@sport","").trim().split(" - ").map(x=>x.trim());const t=(p[2]||"").split("-");const rg=(p[3]||"").split("-");s.sports.push({name:p[0],dows:(p[1]||"").split(",").map(x=>x.trim()),start:t[0],end:t[1],from:rg[0],to:rg[1],color:p[4]||"cyan"});continue;}
-    if(line.startsWith("@fixed")){
-      const p=line.replace("@fixed","").trim().split(" - ").map(x=>x.trim());
-      const name=p[0],time=p[1],room=p[2],color=p[3];
-      const parts=(time||"").split("-");
-      if(parts.length===2) s.fixed.push({name,start:parts[0],end:parts[1],room:room||"",color:color||"gray"});
-      continue;
-    }
+    if(line.startsWith("@sport")){const p=line.replace("@sport","").trim().split(" - ").map(x=>x.trim());const t=(p[2]||"").split("-");const rg=(p[3]||"").split("-");const sp={name:p[0],dows:(p[1]||"").split(",").map(x=>x.trim()),start:t[0],end:t[1],from:rg[0],to:rg[1],color:p[4]||"cyan"};if(s.terms.length)ensureTerm().sports.push(sp);else s.sports.push(sp);continue;}
     if(line.startsWith("@latearly")){line.replace("@latearly","").trim().split(/\s+/).forEach(p=>{const a=p.split("=");if(a[0]&&a[1])s.latearly[a[0]]=a[1];});continue;}
     if(line.startsWith("@day")){const m=line.match(/^@day\s+(\d+)\s*=\s*(.*)$/);if(m)s.days[m[1]]=m[2].trim().split(/\s+/).filter(Boolean).map(tok=>{const i=tok.indexOf(":");const p=tok.slice(0,i);const r=tok.slice(i+1).split("-");return{p,start:r[0],end:r[1]};});continue;}
     if(line.startsWith("@pref")){const m=line.match(/^@pref\s+(\w+)\s*=\s*(.*)$/);if(m)s.pref[m[1]]=m[2].trim();continue;}
-    if(/^[A-H]\s*-/.test(line)){const p=line.split(" - ").map(x=>x.trim());s.classes[p[0]]={name:p[1],num:p[2],sec:p[3],teacher:p[4],room:p[5],color:p[6]||"gray"};continue;}
+    if(/^[A-H]\s*-/.test(line)){const p=line.split(" - ").map(x=>x.trim());const cl={name:p[1],num:p[2],sec:p[3],teacher:p[4],room:p[5],color:p[6]||"gray"};if(s.terms.length)ensureTerm().classes[p[0]]=cl;else s.classes[p[0]]=cl;continue;}
     if(idx===0){s.name=line;idx++;continue;}
-    if(idx===1){s.form=line;idx++;continue;}
+    if(idx===1){s.form=line;const gm=line.match(/fresh/i)?9:line.match(/soph/i)?10:line.match(/jun/i)?11:line.match(/sen/i)?12:(line.match(/grade\s*(\d+)/i)?+RegExp.$1:null);s.grade=gm;idx++;continue;}
   }
   return s;
+}
+
+/* Pick the active term for a given date (MM.DD ranges, may wrap year-end). */
+function termFor(stu,d){
+  if(!stu||!stu.terms||!stu.terms.length) return stu;
+  const mmdd=pad(d.getMonth()+1)+"."+pad(d.getDate());
+  for(const t of stu.terms){
+    if(!t.from||!t.to) return t;
+    const wrap=t.from>t.to;
+    const inRange = wrap ? (mmdd>=t.from||mmdd<=t.to) : (mmdd>=t.from&&mmdd<=t.to);
+    if(inRange) return t;
+  }
+  return stu.terms[stu.terms.length-1];
 }
 
 /* ---- anchor-based cycle day map ---- */
@@ -438,6 +491,7 @@ function buildDayMap(parsed){
       if(dow!==0&&dow!==6){
         if(isNo(b.type)) map[k]={cycle:null,name:b.name||"No Class",type:"noclass",school:false};
         else if(b.type==="immersive") map[k]={cycle:null,name:b.name||"Immersive",type:"immersive",school:true,nocycle:true};
+        else if(b.type==="finals") map[k]={cycle:null,name:b.name||"Final Assessments",type:"finals",school:true,nocycle:true};
         else if(dow===3&&!b.name) map[k]={cycle:0,name:"Wednesday",type:"wednesday",school:true};
         else map[k]={cycle:0,name:b.name||"Normal Day",type:b.type||"normal",school:true};
       }
@@ -497,22 +551,31 @@ function render(){
     for(let h=8;h<=18;h++){const hl=document.createElement("div");hl.className="hline";hl.style.top=((h*60-AX_START)*PX_PER_MIN)+"px";col.appendChild(hl);}
 
     const DN3=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()];
-    if(info&&info.type==="immersive"&&STU&&STU.imm){
+    const T=STU?termFor(STU,d):null;
+    if(info&&info.type==="finals"&&STU&&STU.finals){
+      const mmdd=pad(d.getMonth()+1)+"."+pad(d.getDate());
+      const blocks=STU.finals[mmdd]||[];
+      blocks.forEach(b=>{
+        const g=b.grades.toUpperCase();
+        const mine = g==="ALL" || g.split(",").map(x=>x.trim()).includes(String(STU.grade));
+        if(!mine)return;
+        addBlock(col,k,todayKey,nowMin,{color:"#ff9ad2",start:toMin(b.start),end:toMin(b.end),name:b.label,per:"Final Assessment"});
+      });
+    } else if(info&&info.type==="immersive"&&T&&T.imm){
       const isFirst=(MAPINFO.firstImmersive===k);
       (STU.immBlocks||[]).forEach(b=>{
         const sess=/Session|Afternoon|Morning/.test(b.label);
         let label=b.label, show=true;
         if(/Community/i.test(b.label)&&STU.immComm){
-          // Wed=Advisory, very first immersive day=Assembly, else default
           if(isFirst) label=STU.immComm.first||"Assembly";
           else if(DN3==="Wed") label=STU.immComm.Wed||"Advisory";
           else label=STU.immComm.default||"Community Time";
         }
-        if(show) addBlock(col,k,todayKey,nowMin,{fixed:!sess,color:COLOR_MAP[STU.imm.color]||"#9aa6ff",start:toMin(b.start),end:toMin(b.end),name:sess?STU.imm.name:label,num:sess?STU.imm.num:"",per:sess?b.label:"",teach:sess?`${STU.imm.teacher} \u00b7 ${STU.imm.room}`:""});
+        if(show) addBlock(col,k,todayKey,nowMin,{fixed:!sess,color:COLOR_MAP[T.imm.color]||"#9aa6ff",start:toMin(b.start),end:toMin(b.end),name:sess?T.imm.name:label,num:sess?T.imm.num:"",per:sess?b.label:"",teach:sess?`${T.imm.teacher} \u00b7 ${T.imm.room}`:""});
       });
-    } else if(info&&info.school&&info.cycle&&STU){
+    } else if(info&&info.school&&info.cycle&&T){
       (STU.days[String(info.cycle)]||[]).forEach(item=>{
-        const cls=STU.classes[item.p];if(!cls)return;
+        const cls=(T.classes||{})[item.p];if(!cls||cls.name==="Unscheduled")return;
         let st=item.start,en=item.end;
         if(info.type==="wednesday"&&STU.wed&&STU.wed[item.start]){st=STU.wed[item.start].start;en=STU.wed[item.start].end;}
         addBlock(col,k,todayKey,nowMin,{
@@ -523,7 +586,6 @@ function render(){
           teach:cls.teacher?`${cls.teacher}${cls.room?(" · "+cls.room):""}`:""
         });
       });
-      // weekday-aware community time (no community on Wednesday)
       if(info.type!=="wednesday"&&STU.comm&&STU.comm.time){
         const label=STU.comm[DN3];
         if(label) addBlock(col,k,todayKey,nowMin,{fixed:true,start:toMin(STU.comm.time.start),end:toMin(STU.comm.time.end),name:label,teach:"Rauh"});
@@ -531,12 +593,11 @@ function render(){
     } else if(info&&!info.school){
       const blk=document.createElement("div");blk.className="block dayfull";blk.style.setProperty("--blk","#262d3b");blk.style.color="#cfd6e2";blk.style.top="0";blk.style.height=BODY_H+"px";blk.style.display="grid";blk.style.placeItems="center";blk.style.borderStyle="dashed";blk.innerHTML=`<div class="bname" style="opacity:.85">${info.name}</div>`;col.appendChild(blk);
     }
-    // sports (any school day matching weekday + date range)
-    if(info&&info.school&&STU&&STU.sports){
-      const DN=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()];
+    // sports (term-specific)
+    if(info&&info.school&&T&&T.sports){
       const mmdd=pad(d.getMonth()+1)+"."+pad(d.getDate());
-      STU.sports.forEach(sp=>{
-        if(!sp.dows.includes(DN))return;
+      T.sports.forEach(sp=>{
+        if(!sp.dows.includes(DN3))return;
         if(sp.from&&sp.to&&!(mmdd>=sp.from&&mmdd<=sp.to))return;
         addBlock(col,k,todayKey,nowMin,{color:COLOR_MAP[sp.color]||"#79f0ff",start:toMin(sp.start),end:toMin(sp.end),name:sp.name,per:"Athletics"});
       });
@@ -560,15 +621,16 @@ function addBlock(col,k,todayKey,nowMin,o){
   const blk=document.createElement("div");blk.className="block"+(o.fixed?" fixed":"");
   if(!o.fixed)blk.style.setProperty("--blk",o.color);
   blk.style.top=top+"px";
+  blk.style.height=Math.max(dur,22)+"px"; // true duration, touches dismissal line
   const tline=`${fmtTime(o.start,IS12)} \u2013 ${fmtTime(o.end,IS12)}`;
-  blk.innerHTML=`<div class="bname">${o.name}</div>`+
-    (o.num?`<div class="bnum">${o.num}${o.sec?(" \u00b7 "+o.sec):""}</div>`:"")+
-    (o.per?`<div class="bper">${o.per}</div>`:"")+
-    (o.teach?`<div class="bteach">${o.teach}</div>`:"")+
-    `<div class="btime">${tline}</div>`;
-  // collapsed = exactly 3 full text rows; overflow hidden so no partial 4th line
-  const collapsed=o.fixed?20:48;
-  blk.style.height=collapsed+"px";
+  // build ordered lines, first 3 always visible, rest in .bextra (fade-in on hover)
+  const lines=[`<div class="bname">${o.name}</div>`];
+  if(o.num)lines.push(`<div class="bnum">${o.num}${o.sec?(" \u00b7 "+o.sec):""}</div>`);
+  if(o.per)lines.push(`<div class="bper">${o.per}</div>`);
+  if(o.teach)lines.push(`<div class="bteach">${o.teach}</div>`);
+  lines.push(`<div class="btime">${tline}</div>`);
+  const head=lines.slice(0,3).join(""), extra=lines.slice(3).join("");
+  blk.innerHTML=head+(extra?`<div class="bextra">${extra}</div>`:"");
   if(k===todayKey&&nowMin>=o.start&&nowMin<o.end)blk.classList.add("now");
   col.appendChild(blk);
 }
@@ -576,7 +638,9 @@ function addBlock(col,k,todayKey,nowMin,o){
 function renderLegend(){
   const el=document.getElementById("legend");if(!STU){el.innerHTML="";return;}
   el.innerHTML="";
-  Object.entries(STU.classes).forEach(([p,c])=>{
+  const T=weekStart?termFor(STU,weekStart):(STU.terms&&STU.terms[0])||STU;
+  const cls=(T&&T.classes)||STU.classes||{};
+  Object.entries(cls).forEach(([p,c])=>{
     if(c.name==="Unscheduled")return;
     const col=COLOR_MAP[c.color]||c.color||"#888";
     const d=document.createElement("div");d.className="li";
@@ -624,6 +688,7 @@ async function loadStudent(stu){
   STU.latearly=SCHOOL.latearly||{};  // La/Ea is school-wide
   STU.comm=SCHOOL.comm||null;
   STU.immComm=SCHOOL.immComm||null;
+  STU.finals=SCHOOL.finals||{};
   if(STU.pref.background)document.documentElement.style.setProperty("--bg",STU.pref.background);
   if(STU.pref.highlight_class)document.documentElement.style.setProperty("--accent",STU.pref.highlight_class);
   if(STU.pref.highlight_day)document.documentElement.style.setProperty("--today",STU.pref.highlight_day);

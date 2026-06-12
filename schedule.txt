@@ -48,3 +48,18 @@
 @wed 12:25 => 12:45-13:35
 @wed 13:20 => 13:40-14:30
 @wed 14:15 => 14:35-15:25
+
+# ---- Semester finals / final assessments ----
+# Grade-aware. Format: @finals MM.DD | grades | Label - HH:MM-HH:MM
+# grades = ALL, or a list like 9,10 or 11,12. App shows blocks matching student's grade.
+@finals 12.17 | 11,12 | History Assessment - 08:30-10:00
+@finals 12.17 | 9,10 | English Assessment - 08:30-10:00
+@finals 12.17 | ALL | Computer Science Assessment - 11:00-12:30
+@finals 12.17 | ALL | World Language Assessment - 13:30-15:00
+@finals 12.18 | 11,12 | English Assessment - 08:00-10:00
+@finals 12.18 | 9,10 | History Assessment - 08:00-10:00
+@finals 12.18 | ALL | Tech & Design Assessment - 11:00-12:30
+@finals 12.18 | ALL | Math Assessment - 13:00-15:00
+@finals 12.19 | ALL | Science Assessment - 08:30-10:00
+@finals 12.19 | ALL | Art Assessment - 11:00-12:30
+@finals 12.19 | ALL | Conflict / Make-up - 13:30-15:00

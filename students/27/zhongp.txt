@@ -1,21 +1,34 @@
 Pei Lin Zhong
-Junior - Upper Form
-# Classes: period - name - number - section - teacher - room - color
-A - AP Calculus BC - MA560 - 1 - Mrs. Yam - R 202 - blue
-B - French 2 - FR200 - 1 - Ms. Lembrechts - C 3 - green
-C - Psychology - PS400 - 2 - Mrs. Fani - MC 222 - purple
-D - Robotics - CS301 - 1 - Ms. Wang - GH 031 - teal
-E - U.S. History - HI300 - 5 - Mr. Weiss - R 135 - orange
-F - Organic Chem. - CH410 - 2 - Mr. Grant - MC 208 - red
-G - Indian Lit. - EN4013 - 1 - Ms. Garvey - R 105 - yellow
-H - Organic Chem. - CH410 - 2 - Mr. Grant - MC 208 - red
-# Fixed daily block(s) shown on every school day (name - time - room - color):
-@immersive Your Move - IM327 - Mr. Solomon, Ms. Wang, M. Roland - MC 110 - indigo
-# Sports: name - Days(Mon,Thu) - HH:MM-HH:MM - StartMon.Day-EndMon.Day - color
+27 - Junior
+
+# Each @term has its own classes + date range. App picks the term by date.
+# @term LABEL = MM.DD-MM.DD   (within the school year; spans handled by app)
+# Then classes A-H, then optional @immersive / @sport for that term.
+
+@term Fall 2025 = 08.26-01.16
+A - AP Calculus BC - MA560 - 1 - Mrs. Yam - R 202 - red
+B - French 2 - FR200 - 1 - Ms. Lembrechts - C 3 - purple
+C - Psychology - PS400 - 2 - Mrs. Fani - MC 222 - teal
+D - Unscheduled - - - - - orange
+E - U.S. History - HI300 - 5 - Mr. Weiss - R 135 - yellow
+F - Organic Chem. - CH410 - 2 - Mr. Grant - MC 208 - green
+G - World Lit. - EN3011 - 1 - Ms. Lynch - R 304 - blue
+H - Organic Chem. - CH410 - 2 - Mr. Grant - MC 208 - green
 @sport Swimming - Mon,Thu - 15:45-17:15 - 09.01-11.30 - cyan
-# Preferences:
+
+@term Spring 2026 = 01.20-06.30
+A - AP Calculus BC - MA560 - 1 - Mrs. Yam - R 202 - red
+B - French 2 - FR200 - 1 - Ms. Lembrechts - C 3 - purple
+C - Psychology - PS400 - 2 - Mrs. Fani - MC 222 - teal
+D - Robotics - CS301 - 1 - Ms. Wang - GH 031 - orange
+E - U.S. History - HI300 - 5 - Mr. Weiss - R 135 - yellow
+F - Organic Chem. - CH410 - 2 - Mr. Grant - MC 208 - green
+G - Indian Lit. - EN4013 - 1 - Ms. Garvey - R 105 - blue
+H - Organic Chem. - CH410 - 2 - Mr. Grant - MC 208 - green
+@immersive Your Move - IM327 - Mr. Solomon, Ms. Wang, M. Roland - MC 110 - indigo
+
+# Preferences (apply to all terms):
 @pref background = #0d0f14
 @pref highlight_day = #ffffff
 @pref highlight_class = #ffd23f
 @pref time_format = 12h
-@pref clock_format = ddd, MMM D, YYYY - HH:mm:ss
