@@ -1,4 +1,4 @@
-# SSA Smart Schedule
+# SSA Smart Schedule 
 
 A single‑page, offline‑capable web application for viewing the Shady Side Academy Senior School daily schedule. Built with vanilla HTML, CSS, and JavaScript.  
 It handles the school’s **8‑day rotating cycle**, **immersive terms**, **community time**, **Wednesday late‑start**, **athletics**, and **school holidays** — all driven by plain‑text configuration files.
